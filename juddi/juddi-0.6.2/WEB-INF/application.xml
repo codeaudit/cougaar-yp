@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE application PUBLIC "-//Sun Microsystems, Inc.//DTD J2EE Application 1.2//EN" "http://java.sun.com/j2ee/dtds/application_1_2.dtd">
+<application id="juddiapp">
+  <display-name>jUDDI</display-name>
+  <description>Java-based implementation of the UDDI version 2.0 specification</description>
+  <module id="juddi">
+   <web>
+      <web-uri>juddi.war</web-uri>
+      <context-root>juddi</context-root>
+   </web>
+  </module>
+</application>

@@ -1,0 +1,16 @@
+Apache Axis 1.0
+http://xml.apache.org/axis/
+ axis.jar
+ commons-discovery.jar
+ commons-logging.jar
+ jaxrpc.jar
+ log4j-1.2.4.jar
+ saaj.jar 
+
+HSQLdb 1.7.0       
+http://hsqldb.sourceforge.net/
+ hsqldb.jar
+
+IBM UDDI4j 2.0 (slightly altered DispositionReport)
+http://uddi4j.org/
+ uddi4j.jar

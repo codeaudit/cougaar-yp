@@ -1,0 +1,1 @@
+javaw -classpath "../lib/hsqldb.jar"  org.hsqldb.util.QueryTool -database juddidb -user sa -test false -log true

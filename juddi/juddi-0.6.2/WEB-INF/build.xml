@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!-- ===================================================================
+
+Jakarta Ant build script for jUDDI
+
+
+Prerequisites:
+
+   j2sdk 1.3.1 or 1.4 from http://www.javasoft.com
+   jakarta-ant 1.4 from http://jakarta.apache.org
+   jakarta-tomcat 4.0.4 from http://jakarta.apache.org
+
+   Note: An environment variable named CATALINA_HOME 
+   must be set to point to Tomcat's installation directory. 
+   
+   Note: It is strongly recommended that you add the Ant 
+   'bin' directory and the Java 2 SDK 'bin' directory to 
+   your PATH environment variable.
+
+
+Most Useful Targets:
+
+ - compile   compiles and jars all Java classes
+ - war       builds the jUDDI webapp (juddi.war)
+ - ear       builds the jUDDI Enterprise Application (juddi.ear)
+ - api       builds JavaDocs
+ - all       builds everything
+ - clean     cleans everything
+
+
+Authors:
+
+ Steve Viens <sviens@steveviens.com>
+
+
+Copyright:
+
+  Copyright 2002 (c) Steve Viens 
+
+   $Id: build.xml,v 1.1 2003-03-12 19:03:36 ngivler Exp $
+
+==================================================================== -->
+<project default="compile" basedir=".">
+  <target name="init">
+    <property environment="env"/>
+    <property name="name" value="jUDDI"/>
+    <property name="version" value="0.6.2"/>
+    <property name="debug" value="on"/>
+    <property name="deprecation" value="on"/>
+    <property name="optimize" value="off"/>
+    <property name="lib.dir" value="${basedir}/lib"/>
+    <property name="src.dir" value="${basedir}/src"/>
+    <property name="hsql.dir" value="${basedir}/hsql"/>
+    <property name="html.dir" value="${basedir}/.."/>
+    <property name="classes.dir" value="${basedir}/classes"/>
+    <property name="api.dir" value="${basedir}/api"/>
+    <property name="logs.dir" value="${basedir}/logs"/>
+    <property name="build.dir" value="${basedir}/build"/>
+    <property name="packages" value="org.juddi.*"/>
+    <property name="windowtitle" value="${name} API"/>
+    <property name="copyright" value="Copyright &#169; 2002 SelectInside"/>
+    <property name="tomcat.dir" value="${env.CATALINA_HOME}"/>
+    <path id="project.classpath">
+      <pathelement path="${tomcat.dir}/common/lib/servlet.jar"/>
+      <pathelement path="${tomcat.dir}/common/lib/xerces.jar"/>
+      <pathelement path="${tomcat.dir}/common/lib/jdbc2_0-stdext.jar"/>
+      <pathelement path="${build.dir}/juddi.jar"/>
+      <fileset dir="${lib.dir}">
+        <include name="*.jar"/>
+      </fileset>
+    </path>
+  </target>
+  <!-- =================================================================== -->
+  <!-- Creates the complete set of JavaDoc API                             -->
+  <!-- =================================================================== -->
+  <target name="doc" depends="init">
+    <mkdir dir="${api.dir}"/>
+    <javadoc sourcepath="${src.dir}" destdir="${api.dir}" packagenames="${packages}" author="false" version="true" windowtitle="${windowtitle}" doctitle="${name}" bottom="${copyright}">
+      <classpath refid="project.classpath"/>
+    </javadoc>
+  </target>
+  <!-- =================================================================== -->
+  <!-- Compiles the source directory & generates Java archive (juddi.jar)  -->
+  <!-- =================================================================== -->
+  <target name="compile" depends="init">
+    <mkdir dir="${classes.dir}"/>
+    <javac destdir="${classes.dir}" debug="${debug}" deprecation="${deprecation}" optimize="${optimize}">
+      <classpath refid="project.classpath"/>
+      <src path="${src.dir}"/>
+    </javac>
+  </target>
+  <!-- =================================================================== -->
+  <!-- Creates the juddi web module file (juddi.war)                        -->
+  <!-- =================================================================== -->
+  <target name="war" depends="compile">
+    <mkdir dir="${build.dir}"/>    
+    <jar jarfile="${build.dir}/juddi.jar" basedir="${classes.dir}" includes="org/**"/>
+    <war warfile="${build.dir}/juddi.war" webxml="web.xml">
+      <fileset dir="${html.dir}">
+        <exclude name="WEB-INF/**"/>  
+      </fileset>
+      <webinf dir="${basedir}">
+        <include name="server-config.wsdd"/>
+	   <include name="api/*"/>
+        <include name="conf/*"/>
+	   <include name="hsql/*"/>
+        <include name="logs/*"/>
+	   <include name="src/*"/>
+      </webinf>
+      <lib dir="${lib.dir}">
+        <include name="**/README"/>
+        <include name="**/*.jar"/>
+        <include name="**/*.zip"/>
+      </lib>
+      <lib dir="${build.dir}">
+        <include name="juddi.jar"/>
+      </lib>
+    </war>
+  </target>
+  <!-- =================================================================== -->
+  <!-- Creates the Enterprise Application file (juddi.ear)                 -->
+  <!-- =================================================================== -->
+  <target name="ear" depends="war">
+    <ear earfile="${build.dir}/juddi.ear" appxml="application.xml">
+      <fileset dir="${build.dir}">
+        <patternset>
+          <include name="*.war"/>
+        </patternset>
+      </fileset>
+    </ear>
+  </target>
+  <!-- =================================================================== -->
+  <!-- Creates everything and generates all JavaDoc                        -->
+  <!-- =================================================================== -->
+  <target name="all" depends="clean,ear,doc"/>
+  <!-- =================================================================== -->
+  <!-- Cleans everything                                                   -->
+  <!-- =================================================================== -->
+  <target name="clean" depends="init">
+    <delete dir="${api.dir}" verbose="false"/>
+    <delete dir="${classes.dir}" verbose="false"/>
+    <delete dir="${build.dir}" verbose="false"/>
+    <delete dir="${basedir}/attachments" verbose="false"/>
+    <delete file="${logs.dir}/*.log" quiet="true"/>
+  </target>
+</project>
