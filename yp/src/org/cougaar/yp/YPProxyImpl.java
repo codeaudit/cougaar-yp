@@ -21,38 +21,74 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-import org.uddi4j.*;
-import org.uddi4j.datatype.*;
-import org.uddi4j.datatype.business.*;
-import org.uddi4j.datatype.service.*;
-import org.uddi4j.datatype.tmodel.*;
-import org.uddi4j.datatype.assertion.*;
-import org.uddi4j.request.*;
-import org.uddi4j.response.*;
-import org.uddi4j.util.*;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-
-import org.cougaar.core.component.Service;
-import org.cougaar.core.mts.MessageAddress;
-import org.cougaar.core.service.community.Community;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Properties;
 import java.util.Vector;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.Element;
-import org.w3c.dom.DOMException;
 
-import org.cougaar.util.log.*;
+import org.cougaar.core.mts.MessageAddress;
+import org.cougaar.core.service.community.Community;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.Logging;
+import org.uddi4j.UDDIElement;
+import org.uddi4j.UDDIException;
+import org.uddi4j.datatype.assertion.PublisherAssertion;
+import org.uddi4j.request.AddPublisherAssertions;
+import org.uddi4j.request.DeleteBinding;
+import org.uddi4j.request.DeleteBusiness;
+import org.uddi4j.request.DeletePublisherAssertions;
+import org.uddi4j.request.DeleteService;
+import org.uddi4j.request.DeleteTModel;
+import org.uddi4j.request.DiscardAuthToken;
+import org.uddi4j.request.FindBinding;
+import org.uddi4j.request.FindBusiness;
+import org.uddi4j.request.FindRelatedBusinesses;
+import org.uddi4j.request.FindService;
+import org.uddi4j.request.FindTModel;
+import org.uddi4j.request.GetAssertionStatusReport;
+import org.uddi4j.request.GetAuthToken;
+import org.uddi4j.request.GetBindingDetail;
+import org.uddi4j.request.GetBusinessDetail;
+import org.uddi4j.request.GetBusinessDetailExt;
+import org.uddi4j.request.GetPublisherAssertions;
+import org.uddi4j.request.GetRegisteredInfo;
+import org.uddi4j.request.GetServiceDetail;
+import org.uddi4j.request.GetTModelDetail;
+import org.uddi4j.request.SaveBinding;
+import org.uddi4j.request.SaveBusiness;
+import org.uddi4j.request.SaveService;
+import org.uddi4j.request.SaveTModel;
+import org.uddi4j.request.SetPublisherAssertions;
+import org.uddi4j.request.ValidateValues;
+import org.uddi4j.response.AssertionStatusReport;
+import org.uddi4j.response.AuthToken;
+import org.uddi4j.response.BindingDetail;
+import org.uddi4j.response.BusinessDetail;
+import org.uddi4j.response.BusinessDetailExt;
+import org.uddi4j.response.BusinessList;
+import org.uddi4j.response.CompletionStatus;
+import org.uddi4j.response.DispositionReport;
+import org.uddi4j.response.PublisherAssertions;
+import org.uddi4j.response.RegisteredInfo;
+import org.uddi4j.response.RelatedBusinessesList;
+import org.uddi4j.response.ServiceDetail;
+import org.uddi4j.response.ServiceList;
+import org.uddi4j.response.TModelDetail;
+import org.uddi4j.response.TModelList;
+import org.uddi4j.util.AuthInfo;
+import org.uddi4j.util.BindingKey;
+import org.uddi4j.util.BusinessKey;
+import org.uddi4j.util.CategoryBag;
+import org.uddi4j.util.DiscoveryURLs;
+import org.uddi4j.util.FindQualifiers;
+import org.uddi4j.util.IdentifierBag;
+import org.uddi4j.util.KeyedReference;
+import org.uddi4j.util.ServiceKey;
+import org.uddi4j.util.TModelBag;
+import org.uddi4j.util.TModelKey;
+import org.w3c.dom.DOMException;
+import org.w3c.dom.Element;
 
 // this could easily be code generated from uddi4j sources.  sigh.
 

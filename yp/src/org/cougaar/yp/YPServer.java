@@ -21,51 +21,44 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.UDDIElement;
-import org.uddi4j.client.*;
-import org.uddi4j.response.DispositionReport;
-import org.uddi4j.transport.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.Element;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-import org.cougaar.util.log.*;
-
-import org.cougaar.core.component.*;
-
-import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
-import org.cougaar.core.mts.*;
+import org.cougaar.core.component.ComponentSupport;
+import org.cougaar.core.component.ServiceBroker;
+import org.cougaar.core.mts.Message;
+import org.cougaar.core.mts.MessageAddress;
+import org.cougaar.core.mts.MessageHandler;
+import org.cougaar.core.persist.PersistenceClient;
+import org.cougaar.core.persist.PersistenceIdentity;
+import org.cougaar.core.persist.PersistenceService;
+import org.cougaar.core.persist.RehydrationData;
 import org.cougaar.core.service.AgentIdentificationService;
-import org.cougaar.util.ConfigFinder;
-import org.cougaar.util.CircularQueue;
-
 import org.cougaar.core.service.ThreadService;
-import org.cougaar.core.thread.*;
-
-// persistence support
-import org.cougaar.core.persist.*;
-
-// database connection support
-import java.sql.*;
-
-// juddi imports
-import org.juddi.datastore.jdbc.CreateDatabase;
-import org.juddi.datastore.jdbc.HSQLDataStoreFactory;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.Logging;
 import org.juddi.error.JUDDIException;
 import org.juddi.service.ServiceFactory;
 import org.juddi.service.UDDIService;
 import org.juddi.transport.axis.RequestFactory;
 import org.juddi.util.Config;
+import org.uddi4j.UDDIElement;
+import org.uddi4j.response.DispositionReport;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 
 

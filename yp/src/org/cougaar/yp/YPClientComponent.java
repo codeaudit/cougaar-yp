@@ -21,24 +21,22 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-import org.uddi4j.transport.*;
-
-import org.w3c.dom.Element;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Set;
 
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 
-import org.cougaar.core.component.*;
-
-
-import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
-import org.cougaar.core.blackboard.*;
+import org.cougaar.core.blackboard.BlackboardClient;
+import org.cougaar.core.blackboard.IncrementalSubscription;
+import org.cougaar.core.blackboard.SubscriptionWatcher;
+import org.cougaar.core.component.ComponentSupport;
+import org.cougaar.core.component.ServiceBroker;
+import org.cougaar.core.component.ServiceProvider;
 import org.cougaar.core.mts.Message;
 import org.cougaar.core.mts.MessageAddress;
 import org.cougaar.core.mts.MessageHandler;
@@ -49,11 +47,12 @@ import org.cougaar.core.service.community.CommunityResponse;
 import org.cougaar.core.service.community.CommunityResponseListener;
 import org.cougaar.core.service.community.CommunityService;
 import org.cougaar.core.service.community.Entity;
-import org.cougaar.core.thread.*;
-import org.cougaar.util.*;
-
-
-import org.cougaar.util.log.*;
+import org.cougaar.core.thread.Schedulable;
+import org.cougaar.util.UnaryPredicate;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.Logging;
+import org.uddi4j.transport.TransportException;
+import org.w3c.dom.Element;
 
 /** An Agent-level Component which implements the client-side of the Cougaar
  * YellowPages Application.

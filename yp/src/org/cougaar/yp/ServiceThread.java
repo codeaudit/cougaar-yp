@@ -21,20 +21,11 @@
 
 package org.cougaar.yp;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-import org.cougaar.util.log.*;
-import org.cougaar.core.component.*;
-
-import org.cougaar.core.mts.*;
-import org.cougaar.core.agent.*;
-import org.cougaar.util.ConfigFinder;
-import org.cougaar.util.CircularQueue;
-
+import org.cougaar.core.mts.Message;
 import org.cougaar.core.service.ThreadService;
-import org.cougaar.core.thread.*;
+import org.cougaar.core.thread.Schedulable;
+import org.cougaar.util.CircularQueue;
+import org.cougaar.util.log.Logger;
 
 /** A handler of messages via a queue **/
 public class ServiceThread {

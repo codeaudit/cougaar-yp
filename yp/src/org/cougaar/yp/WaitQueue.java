@@ -21,9 +21,8 @@
 
 package org.cougaar.yp;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /** Implement an asynchronous wait/notify map with value pass-through, selected by an opaque key.
  **/

@@ -21,39 +21,12 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-import org.uddi4j.*;
-import org.uddi4j.datatype.*;
-import org.uddi4j.datatype.business.*;
-import org.uddi4j.datatype.service.*;
-import org.uddi4j.datatype.tmodel.*;
-import org.uddi4j.datatype.assertion.*;
-import org.uddi4j.request.*;
-import org.uddi4j.response.*;
-import org.uddi4j.util.*;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-import org.cougaar.core.component.Service;
-import org.cougaar.core.thread.SchedulableStatus;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Arrays;
-import java.util.Properties;
-import java.util.Vector;
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.Element;
-import org.w3c.dom.DOMException;
-
-import org.cougaar.util.log.*;
-import org.cougaar.core.mts.MessageAddress;
 import org.cougaar.core.persist.Persistable;
-import org.cougaar.core.service.community.Community;
+import org.cougaar.core.thread.SchedulableStatus;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.Logging;
+import org.uddi4j.UDDIException;
+import org.w3c.dom.Element;
 
 
 final class YPFutureImpl implements YPFuture, Persistable {

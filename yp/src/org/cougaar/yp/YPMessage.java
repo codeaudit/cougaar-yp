@@ -21,16 +21,9 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-import org.uddi4j.transport.*;
-import org.w3c.dom.Element;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
 import org.cougaar.core.mts.Message;
 import org.cougaar.core.mts.MessageAddress;
+import org.w3c.dom.Element;
 
 public abstract class YPMessage extends Message {
   private Object key;

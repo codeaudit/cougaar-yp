@@ -21,31 +21,12 @@
 
 package org.cougaar.yp;
 
-import org.cougaar.core.component.*;
-import org.cougaar.core.service.LoggingService;
-import org.cougaar.core.service.ThreadService;
-import org.cougaar.core.thread.*;
-import org.cougaar.util.log.*;
-import org.cougaar.util.StateMachine;
-import org.cougaar.util.StackMachine;
-import org.cougaar.yp.*;
-
-import org.uddi4j.UDDIException;
-import org.uddi4j.client.UDDIProxy;
-
-import org.uddi4j.datatype.tmodel.*;
-import org.uddi4j.response.AuthToken;
-import org.uddi4j.response.DispositionReport;
-import org.uddi4j.response.TModelDetail;
-import org.uddi4j.util.*;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Properties;
-import java.util.Stack;
-import java.util.Vector;
+
+import org.cougaar.core.service.ThreadService;
+import org.cougaar.core.thread.Schedulable;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.Logging;
 
 /**
  * Using OneShotMachine is similar to directly setting a callback on a YPFuture, except

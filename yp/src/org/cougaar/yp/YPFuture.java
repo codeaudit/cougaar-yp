@@ -21,9 +21,8 @@
 
 package org.cougaar.yp;
 
-import org.w3c.dom.Element;
 import org.uddi4j.UDDIException;
-import org.cougaar.util.log.*;
+import org.w3c.dom.Element;
 
 
 // we could base the implementation on concurrent.FutureResult

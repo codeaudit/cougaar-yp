@@ -21,20 +21,17 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-import org.uddi4j.transport.*;
+import java.net.URL;
+import java.util.List;
 
-import org.w3c.dom.Element;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
-import org.cougaar.core.component.*;
-
-import org.cougaar.core.mts.*;
-import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
+import org.cougaar.core.component.ComponentLoadFailure;
+import org.cougaar.core.component.ComponentSupport;
+import org.cougaar.core.component.ServiceBroker;
+import org.cougaar.core.mts.Message;
+import org.cougaar.core.mts.MessageAddress;
+import org.cougaar.core.mts.MessageHandler;
+import org.w3c.dom.Element;
 
 /**
  * This is a trivial YP gateway which translates 
