@@ -515,8 +515,6 @@ public class YPClientComponent extends ComponentSupport {
     }
   }
 
-  private static final String YP_COMMUNITY_FILTER = "(CommunityType=YPCommunity)";
-  
   public static boolean ypCommunity(Community community) {
     Attributes attributes = community.getAttributes();
     Attribute communityType = attributes.get("CommunityType");
