@@ -145,7 +145,7 @@ public interface YPService extends Service {
 
 
   /** Find the YP server context for a given agent.
-   * @param agentName  name of the agent
+   * @param AgentName  name of the agent
    * @param callback callback.invoke(Object) called with the YP server 
    * context for the specified agent.
    * Next context will be null if there is YP server contex for the specified agent
