@@ -423,6 +423,9 @@ public class YPClientComponent extends ComponentSupport {
       return;
     }
     
+    boolean waiting = false;
+    boolean ypCommunity = false;
+
     for (Iterator iterator = parents.iterator();
 	 iterator.hasNext();) {
       String parentName = (String) iterator.next();
@@ -451,6 +454,7 @@ public class YPClientComponent extends ComponentSupport {
       
       if (parent != null) {
 	if (ypCommunity(parent)) {
+	  ypCommunity = true;
 	  if (ypServer(parent)) {
 	    callback.setNextContext(parent);
 	    return;
@@ -464,6 +468,7 @@ public class YPClientComponent extends ComponentSupport {
 	  }
 	}
       } else {
+	waiting = true;
 	if (logger.isDebugEnabled()) {
 	  logger.debug("nextYPServerContext: waiting on community  for " + 
 		       parentName);
@@ -471,11 +476,15 @@ public class YPClientComponent extends ComponentSupport {
       }
     }
 
-    // BOZO - if there are errors in the nesting this may give weird results.
-    // Multiple ypCommunity parents with different YPServerAgents will mean 
-    // multiple setNextContext callbacks. 
-    // Will never get a callback if ypCommunity chain does not have a 
-    // YPServerAgent and ends with a non ypCommunity.
+    // List of parents did not include any yp communities
+    if (!waiting && !ypCommunity) {
+      if (logger.isDebugEnabled()) {
+	logger.debug("nextYPServerContext: no parent YPCommunity for " +
+		     currentContext);
+      }
+      callback.setNextContext(null);
+      return;
+    }
   }
 
   protected void handleNextContext(YPFutureImpl query, Object currentContext,
