@@ -117,7 +117,12 @@ class FindServiceByCategoryQuery
   private static void appendWhere(StringBuffer sql,String businessKey,CategoryBag categoryBag,SearchQualifiers qualifiers)
   {
     sql.append("WHERE C.SERVICE_KEY = S.SERVICE_KEY ");
-    sql.append("AND S.BUSINESS_KEY = '").append(businessKey).append("' ");
+
+    // per UDDI v2.0 Programmers API Errata (pg. 14), businessKey is
+    // is no longer a required attribute of the find_service service.
+    if ((businessKey != null) && (businessKey.length() > 0)) {
+      sql.append("AND S.BUSINESS_KEY = '").append(businessKey).append("' ");
+    }
 
     Vector keyedRefVector = categoryBag.getKeyedReferenceVector();
 
