@@ -22,14 +22,19 @@
 package org.cougaar.yp;
 
 import org.uddi4j.client.*;
+import org.uddi4j.transport.*;
+import org.w3c.dom.Element;
 
 import java.io.*;
 import java.net.*;
 import java.util.*;
 
-import org.cougaar.core.component.Service;
+import org.cougaar.core.mts.Message;
+import org.cougaar.core.mts.MessageAddress;
 
-public interface YPService extends Service {
-  /** Get a UDDIProxy for YP Queries **/
-  UDDIProxy getUDDIProxy();
+public abstract class YPMessage extends Message {
+  protected YPMessage(MessageAddress s, MessageAddress d) {
+    super(s,d);
+  }
 }
+

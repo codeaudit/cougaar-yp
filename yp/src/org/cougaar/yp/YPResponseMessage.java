@@ -21,25 +21,19 @@
 
 package org.cougaar.yp;
 
-// jaxr
-import javax.xml.registry.*;
-import javax.xml.registry.infomodel.*;
+import org.uddi4j.client.*;
+import org.uddi4j.transport.*;
+import org.w3c.dom.Element;
 
 import java.io.*;
 import java.net.*;
 import java.util.*;
 
-/** YP is a static collection of factory methods and utilities for 
- * using the YellowPages facility.
- **/
-public final class YP {
-  private YP() {}         // may not create an instance!
+import org.cougaar.core.mts.Message;
+import org.cougaar.core.mts.MessageAddress;
 
-  /** Construct a new YP query object **/
-  public static YPQuery newQuery() {
-    return null;                // hack for now to compile
-    //return YPQueryImpl.newQuery();
+public abstract class YPResponseMessage extends YPMessage {
+  protected YPResponseMessage(MessageAddress s, MessageAddress d) {
+    super(s,d);
   }
 }
-
-
