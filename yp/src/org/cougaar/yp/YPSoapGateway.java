@@ -45,7 +45,6 @@ import org.w3c.dom.Element;
 public class YPSoapGateway extends ComponentSupport {
   
   private MessageSwitchService mss = null;
-  private WaitQueue wq = new WaitQueue();
   private MessageAddress originMA;
 //  private ApacheSOAPTransport transport = null;
   private URL iURL = null;
@@ -110,9 +109,9 @@ public class YPSoapGateway extends ComponentSupport {
   /** forward to apache soap **/
   private void dispatchQuery(YPQueryMessage r) {
     Object key = r.getKey();
-    Element qel = r.getElement();
+    //    Element qel = r.getElement();
     Element rel = null;
-    boolean isInquiry = r.isInquiry();
+    //    boolean isInquiry = r.isInquiry();
 //    try {
 //      rel = transport.send(qel, isInquiry?iURL:pURL);
 //    } catch (TransportException te) { 
