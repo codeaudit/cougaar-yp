@@ -218,7 +218,7 @@ class Database {
 
         databaseProperties = new HsqlDatabaseProperties(sName);
 
-        if (sName.equals(".")) {
+        if (sName.startsWith(".")) {
             newdatabase = true;
 
             databaseProperties.setProperty("sql.strict_fk", true);
