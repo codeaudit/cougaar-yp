@@ -1,0 +1,48 @@
+BODY {
+  COLOR: #000000
+;
+}
+A:hover {
+  BACKGROUND: #ffffff
+;
+}
+P {
+;
+}
+H3 {
+  BACKGROUND-COLOR: #dddddd;
+  PADDING-BOTTOM: 1px;
+  PADDING-LEFT: 4px;
+  PADDING-RIGHT: 4px;
+  PADDING-TOP: 1px;
+  TEXT-DECORATION: underline;
+  FONT-FAMILY: Arial
+;
+}
+H2 {
+  background-color : silver;
+  PADDING-BOTTOM: 1px;
+  PADDING-LEFT: 4px;
+  PADDING-RIGHT: 4px;
+  PADDING-TOP: 1px;
+  FONT-FAMILY: Arial
+;
+}
+H1 {
+  text-align : left;
+  FONT-FAMILY: Arial
+;
+}
+DT {
+  FONT-WEIGHT: 700
+;
+}
+.masthead {
+  TEXT-ALIGN: center
+;
+}
+.NOTESID {
+  COLOR: #004400;
+  FONT-FAMILY: Arial
+;
+}

@@ -1,0 +1,107 @@
+/*
+ * The source code contained herein is licensed under the IBM Public License
+ * Version 1.0, which has been approved by the Open Source Initiative.
+ * Copyright (C) 2001, International Business Machines Corporation
+ * All Rights Reserved.
+ *
+ */
+
+package org.uddi4j.util;
+
+import java.util.Vector;
+import org.w3c.dom.*;
+import org.uddi4j.*;
+import org.uddi4j.datatype.*;
+import org.uddi4j.datatype.binding.*;
+import org.uddi4j.datatype.business.*;
+import org.uddi4j.datatype.service.*;
+import org.uddi4j.datatype.tmodel.*;
+import org.uddi4j.request.*;
+import org.uddi4j.response.*;
+
+/**
+ * <P>This class is a baseclass for elements within UDDI
+ * that represent a collection of some element,
+ * with no additional attributes.
+ * 
+ * <P>This class inherits from UDDIElement. Although not
+ * declared abstract, it is intended to be subclassed
+ * for the particular element type to be contained within
+ * the collection.
+ * <P>
+ * 
+ * @author David Melgar (dmelgar@us.ibm.com)
+ */
+public class UDDIVector extends UDDIElement {
+   public static final String UDDI_TAG = "categoryBag";
+
+   protected Element base = null;
+
+   // Vector of KeyedReference objects
+   Vector keyedReference = new Vector();
+
+   /**
+    * Default constructor.
+    *
+    */
+   public UDDIVector() {
+   }
+
+   /**
+    * Construct the object from a DOM tree. Used by
+    * UDDIProxy to construct an object from a received UDDI
+    * message.
+    *
+    * @param base   Element with the name appropriate for this class.
+    *
+    * @exception UDDIException Thrown if DOM tree contains a SOAP fault
+    *  or a disposition report indicating a UDDI error.
+    */
+   public CategoryBag(Element base, Class c) throws UDDIException {
+      // Check if it is a fault. Throws an exception if it is.
+      super(base);
+      NodeList nl = null;
+      nl = getChildElementsByTagName(base, KeyedReference.UDDI_TAG);
+      for (int i=0; i < nl.getLength(); i++) {
+         keyedReference.addElement(new KeyedReference((Element)nl.item(i)));
+      }
+   }
+
+   /**
+    * Set keyedReference vector
+    *
+    * @param s  Vector of <I>KeyedReference</I> objects.
+    */
+   public void setKeyedReferenceVector(Vector s) {
+      keyedReference = s;
+   }
+
+   /**
+    * Get keyedReference
+    *
+    * @return s Vector of <I>KeyedReference</I> objects.
+    */
+   public Vector getKeyedReferenceVector() {
+      return keyedReference;
+   }
+
+   /**
+    * Save an object to the DOM tree. Used to serialize an object
+    * to a DOM tree, usually to send a UDDI message.
+    *
+    * <BR>Used by UDDIProxy.
+    *
+    * @param parent Object will serialize as a child element under the
+    *  passed in parent element.
+    */
+   public void saveToXML(Element parent) {
+      base = parent.getOwnerDocument().createElement(UDDI_TAG);
+      // Save attributes.
+      if (keyedReference!=null) {
+         for (int i=0; i < keyedReference.size(); i++) {
+            ((KeyedReference)(keyedReference.elementAt(i))).saveToXML(base);
+     }
+      }
+      parent.appendChild(base);
+   }
+}

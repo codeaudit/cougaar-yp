@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+
+<head>
+<META name="GENERATOR" content="IBM WebSphere Homepage Builder V5.0.1 for Windows">
+<title>UDDI4J v1.0 Release Notes</title>
+<LINK rel="stylesheet" href="ait.css" type="text/css">
+</head>
+
+<BODY bgcolor="#ffffff" alink="#0000ff" leftmargin="2" topmargin="2" marginwidth="2" marginheight="2">
+
+<h1 align="center">UDDI4J Release Log</h1>
+<p></p>
+<H2 align="left">Release history</H2>
+<TABLE border="1">
+  <TBODY>
+    <TR>
+      <TD>Release name</TD>
+      <TD>Date</TD>
+      <TD>Notes</TD>
+    </TR>
+    <TR>
+     <TD>2.0</TD>
+     <TD>5/15/2002</TD>
+     <TD>UDDI4J release with v2 support. Minor changes from 2.0 beta. Errata 3 support,
+     bug fixes, collection class enhancements.
+     </TD>
+    </TR>    
+    <TR>
+     <TD>2.0 beta</TD>
+     <TD>11/09/2001</TD>
+     <TD>Major new release support UDDI v2 specification.
+     Collaboration with HP. </TD>
+    </TR>
+    <TR>
+      <TD>1.0.3</TD>
+      <TD>06/26/2001</TD>
+      <TD>Important bug fix corrects problem with multiple
+      'name' attributes being misinterpreted</TD>
+    </TR>
+    <TR>
+      <TD>1.0.2</TD>
+      <TD>03/28/2001</TD>
+      <TD>bug fixes</TD>
+    </TR>
+    <TR>
+      <TD>1.0.1</TD>
+      <TD>02/16/2001</TD>
+      <TD>bug fixes</TD>
+    </TR>
+    <TR>
+      <TD>1.0</TD>
+      <TD>01/24/2001</TD>
+      <TD>UDDI4J contributed by IBM to open source
+      community on <A href="http://www.ibm.com/developer">Developerworks</A></TD>
+    </TR>
+   <TR>
+      <TD>1.0 beta</TD>
+      <TD>11/13/2000</TD>
+      <TD>Initial release as part of Web Services Toolkit
+      v2.0 available on <A href="http://www.alphaworks.ibm.com">Alphaworks</A></TD>
+    </TR>
+  </TBODY>
+</TABLE>
+<P><BR>
+</P>
+<H2>Change log</H2>
+<H4>2.0 release 5/15/2002</H4>
+<BLOCKQUOTE>Change from 2.0 beta include:<BR>
+<UL>
+  <LI>Support for UDDI V2 errata 3
+  <LI>Configuration object to override system property settings in UDDIProxy.
+  <LI>Collection class methods added to classes that are primarily collections.
+  <LI>Addressline class added support for keyname, keyvalue.
+  <LI>Other miscellaneous bug fixes and enhancements.
+</UL>
+</BLOCKQUOTE>
+
+<H4>2.0 beta released 11/09/2001</H4>
+<BLOCKQUOTE>Major revision. New capabilities include:<BR>
+<UL>
+  <LI>Full support of the UDDI V2 specification
+  <LI>Support for plugable SOAP transports. Currently
+  the supported SOAP implementations include
+  <UL>
+    <LI>Apache SOAP 2.2 (http://xml.apache.org/soap/)
+    <LI>HP SOAP (http://www.hp.com/go/webservices)
+    <LI>Axis (http://xml.apache.org/axis/)
+  </UL>
+  <LI>Logging capability
+  <LI>Improved configuration capability
+</UL>
+</BLOCKQUOTE>
+<BLOCKQUOTE>Other major changes:<BR>
+<UL>
+  <LI>Package name changed to org.uddi4j
+  <LI>UDDI v1 messages are no longer supported.
+</UL>
+</BLOCKQUOTE>
+<BLOCKQUOTE>Major contribution by HP to the project as
+they join the development community. </BLOCKQUOTE>
+<H4>1.0.3 released 06/26/2001</H4>
+<BLOCKQUOTE>This release contains a significant bug fix.
+Users of previous releases are strongly encouraged
+to upgrade. <BR>
+Corrected problem incorrecting interpreting
+'name' attributes contained at multiple levels
+when invoking save requests. <BR>
+</BLOCKQUOTE>
+<H4>1.0.2 released 03/28/2001</H4>
+<BLOCKQUOTE>The getDescriptionStrings methods have been
+removed from all classes that had them. They
+have been replaced with getDefaultDesriptionString
+method.<BR>
+<BR>
+The getDescriptionStrings method was misleading.
+Each string in the returned vector represented
+a different language, yet there was no way
+to figure out what language each string was
+for. getDefaultDescriptionString returns
+the default (english) string.<BR>
+<BR>
+To obtain all the descriptions, use the getDescriptionVector
+method. This returns Description objects
+which contain a language attribute.<BR>
+<BR>
+Some fixes have been checked in to required
+field constructs that accepted Vectors of
+Strings. This does not affect their signatures.
+Affected classes are: DeleteBinding, DeleteBusiness,
+DeleteService, DeleteTModel, GetBindingDetail,
+GetBusinessDetail, GetBusinessDetailExt,
+GetServiceDetail, GetTModelDetail, TModelBag.<BR>
+</BLOCKQUOTE>
+<H4>1.0.1 released 02/16/01</H4>
+<BLOCKQUOTE>Required fields constructors corrected for
+some objects.<BR>
+Samples added to source distribution.</BLOCKQUOTE>
+<H4>1.0 released 01/24/2001</H4>
+<BLOCKQUOTE>Initial submission by IBM of UDDI4J to open
+source community on Developerworks.</BLOCKQUOTE>
+<H4>1.0 beta release 11/13/2000</H4>
+<BLOCKQUOTE>Included as part of IBM Web Services Toolkit
+version 2.0 available on Alphaworks.<BR>
+</BLOCKQUOTE>
+</BODY>
+</html>

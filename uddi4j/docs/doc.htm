@@ -1,0 +1,326 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+
+<HTML>
+
+<HEAD>
+<META name="GENERATOR" content="IBM WebSphere Homepage Builder V5.0.1 for Windows">
+<TITLE>UDDI4J Java API - Overview</TITLE>
+<LINK rel="stylesheet" href="ait.css" type="text/css">
+</HEAD>
+
+<BODY alink="#0000ff" bgcolor="#ffffff" leftmargin="2" topmargin="2" marginwidth="2" marginheight="2">
+
+<H1><A name="UDDI4J Overview">UDDI4J Overview</A></H1>
+<P>The UDDI (Universal Description, Discovery
+and Integration) Project is a comprehensive,
+open industry initiative enabling businesses
+to (I) discover each other, and (II) define
+how they interact over the internet and share
+information in a global registry architecture.
+UDDI is the building block which will enable
+businesses to quickly, easily and dynamically
+find and transact with one another via their
+preferred applications.</P>
+
+<H2>UDDI4J Structure</H2>
+<P>UDDI4J is a Java class library that provides an API that is can be used to interact
+with a UDDI registry. This class library generates and parses messages sent to and
+received from a UDDI server.
+
+<P>The central class in this set of APIs is
+<B>org.uddi4j.client.UDDIProxy</B>. It is a proxy
+for the UDDI server that is accessed from client
+code. Its methods map to the <a href="http://www.uddi.org/pubs/UDDI_Programmers_API_Specification.pdf">
+UDDI Programmer's API Specification</a>.
+<P>The classes within <B>org.uddi4j.datatype</B> represent data objects used to send or receive
+UDDI information.  and in the, business, service, tmodel subpackages represent
+data objects that are sent on calls or received from the server.
+
+<P>The subpackage <B>org.uddi4j.request</B> contains messages sent to the server. 
+These classes are typically not used directly, rather the UDDIProxy class uses these
+classes.
+<P>Similarly, the subpackage <B>org.uddi4j.response</B> represents response messages from a UDDI
+server.<BR><BR>
+Pluggable transports are supported by the
+package <B>org.uddi4j.transport</B>.<H2>Error Handling:</H2>
+<P><B>UDDIException</B> is thrown when errors are received
+from the UDDI proxy when invoking UDDIProxy
+inquiry methods. <b>UDDIException</B> can contain
+a <B>DispositionReport</B> with information about
+the error.</P><P>APIs that do not return a data object return a disposition report directly.
+
+<P><B>TransportException</B> is thrown if a communication error occurs
+or if the resulting data cannot be properly
+parsed as a valid SOAP message. This new
+exception class is required since the previous
+use of SOAPException created a dependency
+on Apache SOAP. TransportException wrappers
+any communications exception thrown by the
+underlying SOAP transport implementation
+(Axis, SOAP, HP-SOAP). The native exception
+is available, and a stack trace will indicate
+where the TransportException was thrown as
+well as the native exceptions stack trace.<H2>Prerequisites</H2>
+<UL>
+  <LI>A SOAP transport. Supported transports include:
+  <UL>
+    <LI>Apache Axis. Available from <a href="http://xml.apache.org/axis">xml.apache.org/axis</a>. Currently supports Axis alpha 3 release.
+    <LI>Apache SOAP 2.2, available from <a href="http://xml.apache.org/soap">xml.apache.org/soap</a>
+    <LI>HP SOAP, available from <a href="http://www.hp.com/go/webservices">hp.com/go/webservices</a>
+    
+  </UL>Each transport has additional prerequisites.
+  Consult the SOAP transport documentation
+  for prerequisite information.
+  <LI>JDK version 1.2.2 or later.
+<LI>Ant is required to build UDDI4J. Ant is available at the 
+<a HREF="http://jakarta.apache.org/ant">Apache ANT website</A>.
+</UL>
+<H2><A name="config">Configuration</A></H2>
+UDDI4J uses a variety of system parameters
+to configure behavior. The following system
+properties affect UDDI4J behavior.
+<DIV align="left">
+<TABLE border="1">
+  <TBODY>
+    <TR>
+      <TH bgcolor="#cccccc">Property name</TH>
+      <TH bgcolor="#cccccc" width="50%">Values</TH>
+      <TH bgcolor="#cccccc">Description</TH>
+    </TR>
+    <TR>
+      <TD>org.uddi4j.TransportClassName</TD>
+      <TD>org.uddi4j.transport.ApacheSOAPTransport,
+      org.uddi4j.transport.HPSOAPTransport,
+      org.uddi4j.transport.ApacheAxisTransport.<BR>
+      <BR>
+      If missing, it defaults to “org.uddi4j.transport.ApacheSOAPTransport”.
+      The property will be read at startup
+      time,
+      and any change at run time (after the
+      TransportFactory
+      has been invoked) will not have any
+      effect.
+      Also see (*) note below on adding a
+      new SOAP
+      transport. Selecting a SOAP transport</TD>
+      <TD>Selecting a SOAP transport</TD>
+    </TR>
+    <TR>
+      <TD>org.uddi4j.logEnabled</TD>
+      <TD>“true” or “false”.<BR>
+      <BR>
+      If missing, it defaults to “false”.
+      The property
+      can be changed at run time, and will
+      be checked
+      each time a UDDI message is sent out.
+      Turning
+      logging on or off.</TD>
+      <TD>Turning logging on or off.</TD>
+    </TR>
+    <TR>
+      <TD>http.proxyHost</TD>
+      <TD>Valid host name.</TD>
+      <TD>Hostname of http proxy</TD>
+    </TR>
+    <TR>
+      <TD>https.proxyHost</TD>
+      <TD>Valid host name. Defaults to hostname of
+      http proxy.</TD>
+      <TD>Hostname of https proxy</TD>
+    </TR>
+    <TR>
+      <TD>http.proxyPort</TD>
+      <TD>Valid port number. Defaults to 80.</TD>
+      <TD>Port of http proxy.</TD>
+    </TR>
+    <TR>
+      <TD>https.proxyPort</TD>
+      <TD>Valid port number. Defaults to http.proxyPort.</TD>
+      <TD>Port of https proxy.</TD>
+    </TR>
+    <TR>
+      <TD>http.proxyUserName
+      <TD>Valid user name.</TD>
+      <TD>Username for proxy server</TD>
+    </TR>
+    <TR>
+      <TD>http.proxyPassword</TD>
+      <TD>Valid password</TD>
+      <TD>Password for proxy server</TD>
+    </TR>
+  </TBODY>
+</TABLE>
+</DIV>
+<H5><BR>
+SOAP transport specific properties:</H5>
+A SOAP transport can add to this list of
+properties. For example, the HP-SOAP transport
+adds the following:
+<TABLE border="1">
+  <TBODY>
+    <TR>
+      <TH bgcolor="#cccccc">Property name</TH>
+      <TH bgcolor="#cccccc">Allowed Values/Default behavior</TH>
+      <TH bgcolor="#cccccc">Description</TH>
+    </TR>
+    <TR>
+      <TD>hpsoap.logDirectory</TD>
+      <TD>Valid directory path.<BR>
+      <BR>
+      In case it is null/missing, or invalid or
+      any error while accessing this directory,
+      the log file will be created in the current
+      directory.<BR>
+      The property will be read at startup time,
+      and any change at run time (after the TransportFactory
+      has been invoked) will not have any effect.</TD>
+      <TD>Directory path of log file</TD>
+    </TR>
+    <TR>
+      <TD>hpsoap.logFileName</TD>
+      <TD>Valid file name.<BR>
+      <BR>
+      In case it is missing, logging will be turned
+      off. In case it is present, but null valued,
+      all logging information will be sent to System.err<BR>
+      If file open/write fails, all log information
+      is sent to System.err.<BR>
+      The property will be read at startup time,
+      and any change at run time (after the<BR>
+      TransportFactory has been invoked) will not
+      have any effect</TD>
+      <TD>File name of log file</TD>
+    </TR>
+  </TBODY>
+</TABLE>
+<H4><BR>
+Usage</H4>
+<PRE><BR>
+The user can set these properties at startup
+time</PRE>
+<BLOCKQUOTE>
+<PRE>
+C:&gt; java –Dorg.uddi4j.TransportClassName=org.uddi4j.transport.HPSOAPTransport<BR>
+-Dorg.uddi4j.logEnabled=true SomeUDDIClient</PRE>
+</BLOCKQUOTE>
+<P><BR>
+The user can set these properties at run
+time</P>
+<BLOCKQUOTE>
+<PRE>System.setProperty (“hpsoap.logDirectory”,
+“/tmp”);<BR>
+System.setProperty (“hpsoap.logFileName”,
+“uddi4j.log”);<BR>
+System.setProperty (“org.uddi4j.logEnabled”,
+“true”);<BR>
+UDDIProxy uddiProxy = new UDDIProxy ();</PRE>
+</BLOCKQUOTE>
+<BR>
+<H2>Using UDDI4J</H2>
+<P>To run a program referencing UDDI4J,</P>
+<UL>
+  <LI>Include uddi4j.jar in the classpath
+  <LI>Include the chosen SOAP transport in the
+  classpath, i.e. axis.jar
+  <LI>Select the transport to use by setting system
+  property <B>org.uddi4j.transportClassName</B> to the appropriate value as defined in the
+  <A href="#config">Configuration</A> section.
+  <LI>If using the publish API, include an implementation
+  of JSSE in the classpath. JSSE can be configured
+  by editing the jre/lib/security/security.policy
+  file within the JDK.
+  <LI>or, can be configured within the client program.
+  The examples illustrate a method for configuring
+  the security provider.
+</UL>
+<H2>Building UDDI4J</H2>
+<UL>
+  <LI>Obtain ANT, SOAP, JDK as listed in the prerequisites.
+  <LI>Include at least one SOAP transport implementation
+  in the classpath. The build will check
+  for
+  the presence of known SOAP transports in
+  the classpath and build the associated
+  support
+  into the resulting jar file. Only those
+  transports
+  available at compile time will be supported
+  by the resulting jar file.
+  <LI>Set required environment variables, including,
+  JAVA_HOME, ANT_HOME.
+  <LI>From the root directory of UDDI4J (where
+  build.xml is located), run
+  <pre>ant target</pre>
+  where target is
+one of the following:
+  <UL>
+    <LI>compile: Compiles the API
+    <LI>samples: Compiles the samples
+    <LI>javadocs: Builds the javadoc
+    <LI>srcdist: Creates the source distribution
+    zip file.
+    <LI>dist: Creates the binary distribution zip
+    file.
+    <LI>clean: Removes built files.
+    <LI>all: Cleans, creates source and binary distribution
+    zip files.
+  </UL>
+</UL>
+<H2>Samples:</H2>
+<P>A set of samples is provided to illustrate
+the basics of using the inquiry api, publish
+api, and error handling.
+<UL>
+  <li>FindExample: The hello world of UDDI programs.
+  Provides the simplest useful sample of a
+  UDDI API.
+  <li>SaveBusinessExample: A simple example using
+  the publish API. Logs into the server using
+the get_authToken method, then attempts to
+  save a business.
+  <LI>DeleteBusinessExample: Searches for a particular
+  business using the inquiry API, finds the
+associated businesskey, logs into the server,
+  then attempts to delete the business found.
+</UL>
+<H3>How to run samples:</H3>
+<P>The samples require several pieces of information
+including the following:</P>
+<UL>
+  <LI>InquiryURL: The URL of the UDDI server to
+  run inquiries against must be specified.
+  <LI>PublishURL: The URL of the UDDI server to
+  run publish requests. This is typically
+an SSL connection.
+  <LI>Userid: When publishing a userid is required
+  for authentication.
+  <LI>Password: Password for the referenced userid.
+  Refered to as a credential in UDDI speak.
+</UL>
+<P><BR>
+A property file is used by the samples to
+read values that may need to be modified.
+This property file includes the values listed
+above, as well as a convenient way to set
+the system properties used by UDDI4J as described
+in <A href="#config">Configuration</A>.</P>
+<P>To run the examples, set the classpath as
+described above, invoke <I>java</I> or <I>jre</I> with the desired sample program name. Example:</P>
+<PRE>java FindBusinessExample</PRE>
+<H2>Reference:</H2>
+<UL>
+  <LI>The UDDI API is described in the <A HREF="http://www.uddi.org/pubs/UDDI_Programmers_API_Specification.pdf">UDDI Programmer's API Specification</A>
+available on the <A HREF="http://www.uddi.org">UDDI.org web site</A>.
+  <LI>The <A HREF="http://www.uddi.org/pubs/UDDI_XML_Structure_Reference.pdf">UDDI data structure Reference</A> is also available at the same site.
+  <LI><a HREF="apidocs/index.html">Javadoc for the UDDI Java API classes</A>
+  <LI><a href="http://www.ibm.com/services/uddi">IBM UDDI web site</a>
+</UL>
+<HR WIDTH="100%">
+<P>IBM is a registered trademark of IBM, 
+HP is a registered trademark of Hewlett-Packard Company<BR>
+<BR>
+Copyright&copy; IBM Corporation 2001, All rights reserved.
+                      
+</P>
+</BODY></HTML>

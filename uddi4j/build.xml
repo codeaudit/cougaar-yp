@@ -1,0 +1,219 @@
+<?xml version="1.0"?>
+
+<!-- ===================================================================
+
+   Build file for UDDI4J
+
+Notes:
+   This is a build file for use with the Jakarta Ant build tool.
+
+Prerequisites:
+
+   jakarta-ant from http://jakarta.apache.org
+   A SOAP transport, one or more of:
+   - xml-soap from http://xml.apache.org/soap
+   - xml-axis from http://xml.apache.org/axis
+   - hp-soap from http://www.hp.com
+   
+Build Instructions:
+   To build, run
+
+     java org.apache.tools.ant.Main <target>
+
+   on the directory where this file is located with the target you want.
+
+Most useful targets:
+
+ - compile  -> calls the compileAll target.
+ - javadocs -> creates the javadocs in "./build/javadocs"
+ - dist     -> creates the complete binary distribution
+ - srcdist  -> creates the complete src distribution
+ - all      -> clean, compiles, generates both distributions
+
+Authors:
+  David Melgar <dmelgar@us.ibm.com>
+  Arulazi D    <aruld@india.hp.com>
+  
+
+ Copyright: "Copyright (c) 2001, International Business Machines Corporation
+             Copyright (c) 2001, Hewlett-Packard Company "
+
+==================================================================== -->
+
+<project default="compile" basedir=".">
+
+  <target name="init">
+    <property name="name" value="uddi4j"/>
+    <property name="Name" value="UDDI4J"/>    
+    <property name="version" value="2.0"/>
+    <property name="year" value="2001"/>
+
+    <property name="build.compiler" value="classic"/>
+    <property name="debug" value="off"/>
+
+    <property name="src.dir" value="./src"/>
+    <property name="docs.dir" value="./docs"/>
+    <property name="samples.dir" value="./samples"/>    
+
+    <property name="packages" value="org.*"/>
+
+    <property name="build.file" value="build.xml"/>
+    
+    <property name="build.dir" value="./build"/>
+    <property name="build.dest" value="./build/classes"/>
+    <property name="build.lib" value="./build/lib"/>
+    <property name="build.samples" value="./build/samples"/>    
+    <property name="build.javadocs" value="./build/javadocs"/>    
+
+    <property name="dist.dir" value="./ziptmp/uddi4j"/>
+    
+    <mkdir dir="${build.dir}"/>
+    
+    <available property="hp-soap.available"               
+               classname="com.hp.soap.client.SoapClient"               
+               classpath="${CLASS_PATH}" />
+    <available property="apache-soap.available"
+               classname="org.apache.soap.messaging.Message"               
+               classpath="${CLASS_PATH}" />
+    <available property="apache-axis.available"
+               classname="org.apache.axis.Message"
+               classpath="${CLASS_PATH}" />
+               
+    <echo message="SOAP transport support will be built for those transports." />
+    <echo message="found in the classpath, indicating available = true below."/>
+    <echo message=""/>
+    <echo message="Apache SOAP available = ${apache-soap.available}"/>          
+    <echo message="Apache Axis available = ${apache-axis.available}"/>          
+    <echo message="HP SOAP available = ${hp-soap.available}"/>          
+  </target> 
+  
+
+  <!-- =================================================================== -->
+  <!-- Compiles the source directory with available soap implementations   -->
+  <!-- =================================================================== -->
+  <target name="compile" depends="init" >
+    <mkdir dir="${build.dest}" />
+    <javac srcdir="${src.dir}" destdir="${build.dest}" debug="${debug}"
+      includes="org/uddi4j/**/*.java"      
+      classpath="${CLASS_PATH}">
+      <exclude name="org/uddi4j/transport/HPSOAP*.java" unless="hp-soap.available"/>
+      <exclude name="org/uddi4j/transport/ApacheSOAP*.java" unless="apache-soap.available"/>
+      <exclude name="org/uddi4j/transport/ApacheAxis*.java" unless="apache-axis.available"/>
+    </javac>
+    <mkdir dir="${build.lib}"/>
+    <jar jarfile="${build.lib}/${name}.jar" basedir="${build.dest}" />
+  </target>   
+  
+  
+  <!-- =================================================================== -->
+  <!-- Compiles the samples                                                -->
+  <!-- =================================================================== -->
+  <target name="samples" depends="compile">
+    <mkdir dir="${build.samples}"/>
+    <javac srcdir="${samples.dir}" 
+           destdir="${build.samples}" 
+           classpath="${CLASS_PATH}:${build.lib}/${name}.jar" 
+           debug="${debug}" >
+    </javac>        
+    <copy todir="${build.samples}" >
+       <fileset dir="${samples.dir}" />
+    </copy>
+  </target>  
+  
+  <!-- =================================================================== -->
+  <!-- Creates the API documentation                                       -->
+  <!-- =================================================================== -->
+  <target name="javadocs" depends="init">
+    <mkdir dir="${build.javadocs}"/>
+    <javadoc  packagenames="${packages}"
+        sourcepath="${src.dir}"
+        destdir="${build.javadocs}"
+        author="true"
+        version="true"
+        use="true"
+        windowtitle="${Name} API"
+        doctitle="${Name}"
+        bottom="Copyright &#169; 2001 International Business Machines Corporation, Hewlett-Packard Company. All Rights Reserved."
+    />
+  </target>
+
+  <!-- =================================================================== -->
+  <!-- Creates the binary distribution                                            -->
+  <!-- =================================================================== -->
+  <target name="dist" depends="compile, javadocs, samples">
+    <mkdir dir="${dist.dir}"/>
+    <mkdir dir="${dist.dir}/docs"/>
+    <mkdir dir="${dist.dir}/docs/apiDocs"/>
+    <mkdir dir="${dist.dir}/lib"/>
+    <mkdir dir="${dist.dir}/samples"/>
+
+    <copy todir="${dist.dir}/docs/apiDocs">
+       <fileset dir="${build.javadocs}" />
+    </copy>
+    
+    <copy todir="${dist.dir}/lib">
+       <fileset dir="${build.lib}" />
+    </copy>
+    
+    <copy todir="${dist.dir}/samples">
+       <fileset dir="${build.samples}" />
+    </copy>
+    
+    <copy todir="${dist.dir}/docs">
+       <fileset dir="${docs.dir}" />
+    </copy>
+
+    <copy file="LICENSE.html" tofile="${dist.dir}/LICENSE.html"/>
+    <copy file="README" tofile="${dist.dir}/README"/>
+    <copy file="ReleaseNotes.html" tofile="${dist.dir}/ReleaseNotes.html"/>
+  </target>
+
+  <!-- =================================================================== -->
+  <!-- Creates the source distribution                                            -->
+  <!-- =================================================================== -->
+  <target name="srcdist" depends="init">
+    <mkdir dir="${dist.dir}"/>
+    <mkdir dir="${dist.dir}/src"/>
+    <mkdir dir="${dist.dir}/samples"/>
+
+    <copy todir="${dist.dir}/src" >
+       <fileset dir="${src.dir}" />
+    </copy>
+    <copy todir="${build.samples}" >
+       <fileset dir="${samples.dir}" />
+    </copy>
+    <copy todir="${dist.dir}/samples">
+       <fileset dir="${build.samples}" />
+    </copy>
+    <copy todir="${dist.dir}/docs">
+       <fileset dir="${docs.dir}" />
+    </copy>
+    <copy file="LICENSE.html" tofile="${dist.dir}/LICENSE.html"/>
+    <copy file="README" tofile="${dist.dir}/README"/>
+    <copy file="ReleaseNotes.html" tofile="${dist.dir}/ReleaseNotes.html"/>
+    <copy file="${build.file}" tofile="${dist.dir}/${build.file}"/>
+  </target>
+  
+  <target name="srcdistzip" depends="srcdist">
+     <zip zipfile="uddi4j-src.zip" basedir="./ziptmp"/>
+  </target>
+    
+  <target name="bindistzip" depends="dist">
+     <zip zipfile="uddi4j-bin.zip" basedir="./ziptmp"/>
+  </target>
+  
+  <target name="deletedist" depends="dist">
+     <delete dir="./ziptmp"/>
+  </target>
+
+  <!-- =================================================================== -->
+  <!-- Cleans everything                                                   -->
+  <!-- =================================================================== -->
+  <target name="clean" depends="init">
+    <delete dir="${build.dir}"/>
+    <delete dir="${dist.dir}"/>
+  </target>
+  
+  <target name="all" depends="srcdistzip, bindistzip, deletedist" />
+
+</project>
