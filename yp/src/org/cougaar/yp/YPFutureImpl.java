@@ -50,9 +50,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.DOMException;
 
 import org.cougaar.util.log.*;
+import org.cougaar.core.persist.Persistable;
 
 
-final class YPFutureImpl implements YPFuture {
+final class YPFutureImpl implements YPFuture, Persistable {
   private static final Logger logger = Logging.getLogger(YPProxy.class); // reuse proxy's logger
 
   private String initialContext;
@@ -161,4 +162,7 @@ final class YPFutureImpl implements YPFuture {
       }
     }
   }
+
+  // implement Persistable
+  public boolean isPersistable() { return false; }
 }
