@@ -144,6 +144,17 @@ public interface YPService extends Service {
   YPFuture submit(YPFuture ypr);
 
 
+  /** Find the YP server context for a given agent.
+   * @param agentName  name of the agent
+   * @param callback callback.invoke(Object) called with the YP server 
+   * context for the specified agent.
+   * Next context will be null if there is YP server contex for the specified agent
+   * @note callback.invoke may be called from within nextYPServerContext
+   **/
+  public void getYPServerContext(final String AgentName,
+				 final NextContextCallback callback);
+
+
   /** Find the next context to search.
    * @param currentContext current YP context
    * @param callback callback.invoke(Object) called with the next context. 

@@ -213,6 +213,12 @@ public class YPClientComponent extends ComponentSupport {
       YPClientComponent.this.nextYPServerContext(currentContext,
 						 callback);
     }
+
+    public void getYPServerContext(final String agentName,
+				   final NextContextCallback callback) {
+      YPClientComponent.this.getYPServerContext(agentName,
+						callback);
+    }
   }
 
 
@@ -363,6 +369,103 @@ public class YPClientComponent extends ComponentSupport {
     }
   }
 
+
+  /** Find the YP server context for the specified agent
+   * @param agentName agent
+   * @param callback callback.invoke(Object) called with the YP server context
+   * for the specified agent
+   * Next context will be null if there is no next context.
+   * @note callback.invoke may be called from within getYPServerContext
+   **/
+  private void getYPServerContext(final String agentName,
+				  final YPService.NextContextCallback callback) {
+    
+    if ((agentName == null) || (agentName.equals(""))) {
+      // nowhere to go 
+      callback.setNextContext(null);
+      return;
+    }
+
+    
+    CommunityResponseListener crl = new CommunityResponseListener() {
+      public void getResponse(CommunityResponse resp){
+	// Found the parents so reenter with the same context
+	getYPServerContext(agentName,
+			   callback);
+      }
+    };
+
+    Collection parents = communityService.listParentCommunities(agentName, crl); 
+    
+    if (logger.isDebugEnabled()) {
+      logger.debug("getYPServerContext: listParentCommunities(" + 
+		   agentName + ") returned " +
+		   parents);
+    };
+
+    if (parents == null) { 
+      // waiting on community callback so let callbacks handle it
+      return;
+    } else if (parents.size() == 0) {
+      // No more parents
+      callback.setNextContext(null);
+      return;
+    }
+    
+    boolean waiting = false;
+    boolean ypCommunity = false;
+
+    for (Iterator iterator = parents.iterator();
+	 iterator.hasNext();) {
+      String parentName = (String) iterator.next();
+      
+      crl = new CommunityResponseListener() {
+	public void getResponse(CommunityResponse resp){
+	  Community parent = (Community) resp.getContent();
+	  
+	  if (ypCommunity(parent)) {
+	    if (!ypServers(parent).isEmpty()) {
+	      callback.setNextContext(parent);
+	    }
+	  } 
+	}
+      };
+      
+      Community parent = communityService.getCommunity(parentName, crl);
+
+      if (logger.isDebugEnabled()) {
+	logger.debug("getYPServerContext: getCommunity(" + 
+		     parentName + ") returned " +
+		     parent);
+      };
+      
+      if (parent != null) {
+	if (ypCommunity(parent)) {
+	  ypCommunity = true;
+	  if (!ypServers(parent).isEmpty()) {
+	    callback.setNextContext(parent);
+	    return;
+	  } 
+	}
+      } else {
+	waiting = true;
+	if (logger.isDebugEnabled()) {
+	  logger.debug("getYPServerContext: waiting on community  for " + 
+		       parentName);
+	}
+      }
+    }
+
+    // List of parents did not include any yp communities
+    if (!waiting && !ypCommunity) {
+      if (logger.isDebugEnabled()) {
+	logger.debug("getYPServerContext: no parent YPCommunity for " +
+		     agentName);
+      }
+      callback.setNextContext(null);
+      return;
+    }
+  }
 
   /** Find the next context to search.
    * @param currentContext current YP context
