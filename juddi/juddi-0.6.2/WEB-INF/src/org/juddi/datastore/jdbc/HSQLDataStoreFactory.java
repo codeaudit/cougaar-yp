@@ -16,6 +16,7 @@ import org.apache.log4j.Logger;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
   
 /**
  * Implementation of Factory pattern to decide which class that
@@ -42,25 +43,19 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   private static final boolean perThread = Config.getOneServerPerThread();
 
   private static final boolean inMemory = Config.getInMemoryDatabase();
-  private static int dbCount = 1;
-  private static ThreadLocal dbNum = new ThreadLocal() {
+
+  public static ThreadLocal dbTag = new ThreadLocal() {
     protected synchronized Object initialValue() {
-      return new Integer (dbCount++);
+      return new String("");
     }
   };
 
-  private static ThreadLocal cachedConnections = new ThreadLocal() {
-    protected synchronized Object initialValue() {
-      try {
-        return DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
-      }
-      catch(SQLException sqlex) {
-        log.error("Exception occured while attempting to create a " +
-          "new JDBC connection: "+sqlex.getMessage());
-      }
-      return null;
-    }
-  };
+
+  // Use dbTag as the HashMap key. So ... if process is using more than 1 
+  // database, must set dbTag before each interaction. Connections are not
+  // re-entrant so only one thread can be using a connection at a time.
+  private static HashMap cachedConnections = new HashMap();
+
 
   /**
    *
@@ -78,14 +73,24 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   }
 
   /**
-   * using this function will allow different URLs for different threads
+   * using this function will allow different URLs for different threads. 
+   * Thread must set ThreadLocal dbTag() before invoking JUDDI.
+   */
+  private static String jdbcURL() {
+    if (!dbTag.get().equals("")) {
+      return "jdbc:hsqldb:" + Config.getHomeDir() + "/hsql/" + dbTag.get() + "/juddidb";
+    } else {
+      return jdbcURL;
+    }
+  }
+
+  /**
+   * using this function will allow JUDDI to use both file and memory based 
+   * HSQL instances.
    */
   private static String getURL() {
-    String url = inMemory ? inMemoryURL : jdbcURL;
-    if (! perThread)
-      return url;
-    int num = ((Integer) dbNum.get()).intValue();
-    return (num == 1) ? url : (url + num);
+    String url = inMemory ? inMemoryURL : jdbcURL();
+    return url;
   }
 
   /**
@@ -93,7 +98,22 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    */
   public DataStore aquireDataStore()
   {
-    return new JDBCDataStore((Connection) cachedConnections.get());
+    Connection connection = (Connection) cachedConnections.get(dbTag.get());
+    
+    if (connection == null) {
+      try {
+        connection = DriverManager.getConnection(getURL(), 
+						 jdbcUserID, 
+						 jdbcPassword);
+	cachedConnections.put(dbTag.get(), connection);
+      } catch(SQLException sqlex) {
+        log.error("Exception occured while attempting to create a " +
+		  "new JDBC connection: for getURL() " + sqlex.getMessage());
+	return null;
+      }
+    }
+
+    return new JDBCDataStore(connection);
   }
 
   /**
@@ -103,10 +123,14 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   }
 
   /**
+   * Get cached connection associated with ThreadLocal dbTag.
+   * If process is using more than 1 database,  must set dbTag before each 
+   * interaction. Connections are not re-entrant so only one thread can be 
+   * using a connection at a time.
    *
    */
   public Connection getConnection()
   {
-    return (Connection) cachedConnections.get();
+    return (Connection) cachedConnections.get(dbTag.get());
   }
 }
