@@ -28,20 +28,16 @@ import java.util.*;
 /** Implement an asynchronous wait/notify map with value pass-through, selected by an opaque key.
  **/
 class WaitQueue {
-  /** An object returned by waitFor if timed out **/
-  public static final Object TIMEOUT = new Object();
+  private long counter = 0L;
+  private HashMap selects = new HashMap(11); // assume not too many at a time
 
-  private long counter = 0L;    // access must be synced on selects
-  private final HashMap selects = new HashMap(11); // assume not too many at a time
-
-  /** Construct a key to be used in this wait queue
-   **/
+  /** Construct a key to be used in this wait queue **/
   Object getKey() {
+    Object key = new Long(counter++);
     synchronized (selects) {
-      Object key = new Long(counter++);
       selects.put(key, new Waiter());
-      return key;
     }
+    return key;
   }
 
   /** Activate any thread(s) which are waiting for a response from the key **/
@@ -57,11 +53,10 @@ class WaitQueue {
   /** Block the current thread until there is a triggerKey has been called
    * on the referenced key.
    * Returns immediately if the key is unknown or has previously been triggered.
-   * @return The value or TIMEOUT if the key is still outstanding.
    * @throw InterruptedException if the wait is interrupted.  In this case,
    * the trigger is <em>not</em> cleared.
    * @param key The key as returned by #getKey()
-   * @param timeout How long to wait (in millis) or 0 (forever)
+   * @param timeout How long to wait or 0 (forever)
    **/
   Object waitFor(Object key, long timeout) throws InterruptedException {
     Waiter waiter = null;
@@ -71,20 +66,17 @@ class WaitQueue {
     }
 
     // non-null waiter: pass control to it
-    boolean done = waiter.waitFor(timeout);
-    if (!done) {
-      return TIMEOUT;
-    } else {
-      // when done, clear it
-      synchronized (selects) {
-        selects.remove(key);
-      }
-
-      return waiter.value();
+    Object value = waiter.waitFor(timeout);
+    
+    // when done, clear it
+    synchronized (selects) {
+      selects.remove(key);
     }
+
+    return value;
   }
 
-  /** Equivalent to waitFor(key,0L)
+  /** alias for waitFor(key,0L);
    **/
   Object waitFor(Object key) throws InterruptedException {
     return waitFor(key,0L);
@@ -103,93 +95,62 @@ class WaitQueue {
   }
 
   private static class Waiter {
-    private boolean triggered = false;
+    private boolean trigger = false;
     private Object value = null;
 
-    /** wait a specified length of time for a trigger event.
-     * @return true if an event happened.
-     **/
-    synchronized boolean waitFor(long timeout) throws InterruptedException {
-      if (triggered) return true;
+    synchronized Object waitFor(long timeout) throws InterruptedException{
+      if (trigger) return value;
       this.wait(timeout);
-      return triggered;
-    }
-
-    /** The value of the Waiter, only defined if triggered already **/
-    synchronized Object value() {
-      assert triggered;
       return value;
     }
 
     synchronized void trigger(Object value) {
-      triggered = true;
+      trigger = true;
       this.value = value;
       this.notify();
     }
 
     synchronized boolean wouldBlock() {
-      return (!triggered);
+      return (!trigger);
     }
   }
 
-  /*
   public static void main(String [] arg) {
-    final ArrayList keys = new ArrayList();
+    ArrayList keys = new ArrayList();
     final WaitQueue wq = new WaitQueue();
-    final int m = Integer.parseInt(arg[0]);
-    final Random rand = new Random();
 
-    System.out.println("Starting threads...");
-    for (int j = 0; j<10; j++) {
-      final int fj = j*1000;
+    for (int i = 0; i<10; i++) {
+      final Object k = wq.getKey();
+      final Object r = new Integer(i);
       new Thread(new Runnable() {
           public void run() {
-            for (int i = 0; i<m; i++) {
-              final Object k = wq.getKey();
-              final Object r = new Integer(fj+i);
-              new Thread(new Runnable() {
-                  public void run() {
-                    try {
-                      Thread.sleep(rand.nextInt(10000));
-                    } catch(Exception e) {
-                      e.printStackTrace();
-                    }
-                    wq.trigger(k, r);
-                  }
-                }).start();
-              synchronized (keys) {
-                keys.add(k);
-              }
+            try {
+              Thread.sleep(30*1000);
+            } catch(Exception e) {
+              e.printStackTrace();
             }
+            wq.trigger(k, r);
           }
-        }).start();
-    }
-      
-    System.out.println("Waiting for key set completion...");
-    while (true) {
-      synchronized (keys) {
-        if (keys.size() == m*10) break;
-        try {
-          Thread.sleep(10L);
-        } catch(Exception e) {
-          e.printStackTrace();
         }
+                 ).start();
+      keys.add(k);
+      
+      try {
+        Thread.sleep(500);
+      } catch(Exception e) {
+        e.printStackTrace();
       }
+
     }
     
-    System.out.println("Waiting for threads...");
-    for (int i=0;i<(m*10); i++) {
+    for (int i=0;i<10; i++) {
       try {
-        Object v;
-        while ( (v=wq.waitFor(keys.get(i), 100L)) == TIMEOUT) {
-          System.out.print(".");
-        }
+        Object v = wq.waitFor(keys.get(i));
         System.out.println("result "+i+" = "+v);
       } catch (Exception e) {
         e.printStackTrace();
       }
     }
-    System.out.println("All threads in...");    
   }
-  */
+
 }

@@ -36,9 +36,6 @@ import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
 
-import org.cougaar.util.log.*;
-
-
 /** An Agent-level Component which implements the client-side of the Cougaar
  * YellowPages Application.
  * @note this version supports only Component-model Service style access,
@@ -47,7 +44,6 @@ import org.cougaar.util.log.*;
  **/
 
 public class YPClientComponent extends ComponentSupport {
-  private static final Logger logger = Logging.getLogger(YPClientComponent.class);
   
   private MessageSwitchService mss = null;
   private YPTransport transport;
@@ -92,12 +88,6 @@ public class YPClientComponent extends ComponentSupport {
   private void dispatchResponse(YPResponseMessage r) {
     Object key = r.getKey();
     Element el = r.getElement();
-    if (logger.isDebugEnabled()) {
-      logger.debug("dispatchResponse(): YPResonseMessage - el " + 
-		   r.getElement() +
-		   " source " + r.getOriginator() + " destination " + 
-		r.getTarget());
-    }
     wq.trigger(key, el);
   }
 
@@ -142,7 +132,6 @@ public class YPClientComponent extends ComponentSupport {
       if (context == null) {
         context = "default";
       }
-
       try {
         URL iurl = new URL("http",context,F_INQUIRY);
         URL purl = new URL("https",context,F_PUBLISH);

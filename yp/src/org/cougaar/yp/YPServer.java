@@ -76,21 +76,22 @@ public class YPServer extends ComponentSupport {
     DocumentBuilderFactory.newInstance();
 
   private DocumentBuilder builder;
-
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
 
-  public YPServer() {
-    try {
-      builder = documentBuilderFactory.newDocumentBuilder();
-    } catch (javax.xml.parsers.ParserConfigurationException e) {
-      throw new RuntimeException("Failed to create DocumentBuilder", e);
+  private DocumentBuilder getBuilder() {
+    if (builder == null) {
+      try {
+        builder = documentBuilderFactory.newDocumentBuilder();
+      } catch (Exception e) {
+        logger.error ("Could not create builder factory");
+      }
     }
+    return builder;
   }
 
   public void initialize() {
     super.initialize();
-
     initUDDI();
     initDB();
     
@@ -143,14 +144,14 @@ public class YPServer extends ComponentSupport {
   public static final String DB_PASS = "";
 
   Element executeQuery(Element qel) {
-	
+
     try {
       if (logger.isDebugEnabled()) {
 	logger.debug("executeQuery: query -");
 	describeElement(qel);
       }
 
-      Document document = builder.newDocument();
+      Document document = getBuilder().newDocument();
       Element holder = document.createElement("holder");
       document.appendChild(holder);  // holder element is thrown away
       Element response = document.getDocumentElement();
@@ -192,19 +193,10 @@ public class YPServer extends ComponentSupport {
 
       CreateDatabase.dropDatabase(connection);
       CreateDatabase.createDatabase(connection);
-      
-      
+
     } catch (Exception e) {
       logger.error("Exception creating UDDI tables in the HSQL database.");
       e.printStackTrace();
-    } finally {
-      try {
-	if (connection != null) {
-	  connection.close();
-	}
-      } catch(SQLException sqlex) {
-        sqlex.printStackTrace();
-      }
     }
   }
 
@@ -219,6 +211,68 @@ public class YPServer extends ComponentSupport {
     props.setProperty("URL", DB_URL);
 
     //com.induslogic.uddi.server.util.GlobalProperties.loadProperties(props);
+  }
+
+  // 
+  // the rest is a hack test lash-up
+  //
+
+  public static void main(String[] arg) {
+    YPServer yp = new YPServer();
+    yp.initDB();
+    yp.initUDDI();
+    YPTransport transport = new YPTransport(yp);
+
+    UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
+
+    try {
+      URL iurl = new URL("http","zoop", "frotz");
+      URL purl = new URL("https","zart", "glorp");
+      proxy.setInquiryURL(iurl);
+      proxy.setPublishURL(purl);
+    } catch (MalformedURLException e) { 
+      // cannot happen
+    }
+
+
+    new YPTest().test(proxy);
+  }
+  
+  private static class YPTransport extends TransportBase {
+    private YPServer yp;
+    YPTransport(YPServer yp) {
+      this.yp = yp;
+    }
+    /** Send the DOM element specified to the URL as interpreted by the MTS **/
+    public Element send(Element el, java.net.URL url) throws TransportException {
+      if (logger.isDebugEnabled()) {
+	logger.debug("Transported query "+el);
+      }
+
+      describeElement(el);
+      Element resp = yp.executeQuery(serialize(el));
+      if (logger.isDebugEnabled()) {
+	logger.debug("Sending Response "+resp);
+	describeElement(resp);
+      }
+      return serialize(resp);
+    }
+    private Element serialize(Element el) {
+      try {
+      ByteArrayOutputStream outbytes = new ByteArrayOutputStream();
+      ObjectOutputStream oos = new ObjectOutputStream(outbytes);
+      oos.writeObject(el);
+      oos.close();
+      ByteArrayInputStream inbytes = new ByteArrayInputStream(outbytes.toByteArray());
+      ObjectInputStream ois = new ObjectInputStream(inbytes);
+      Element rv = (Element) ois.readObject();
+      ois.close();
+      return rv;
+      } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+      }
+    }
   }
 }
 

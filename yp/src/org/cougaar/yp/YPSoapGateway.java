@@ -50,7 +50,7 @@ public class YPSoapGateway extends ComponentSupport {
   private MessageSwitchService mss = null;
   private WaitQueue wq = new WaitQueue();
   private MessageAddress originMA;
-  private ApacheSOAPTransport transport = null;
+//  private ApacheSOAPTransport transport = null;
   private URL iURL = null;
   private URL pURL = null;
 
@@ -107,7 +107,7 @@ public class YPSoapGateway extends ComponentSupport {
     mss.addMessageHandler(mh);
     originMA = mss.getMessageAddress();
 
-    transport = new ApacheSOAPTransport();
+//    transport = new ApacheSOAPTransport();
   }
 
   /** forward to apache soap **/
@@ -116,11 +116,11 @@ public class YPSoapGateway extends ComponentSupport {
     Element qel = r.getElement();
     Element rel = null;
     boolean isInquiry = r.isInquiry();
-    try {
-      rel = transport.send(qel, isInquiry?iURL:pURL);
-    } catch (TransportException te) { 
-      // probably should bundle up the exception in a response element
-    }
+//    try {
+//      rel = transport.send(qel, isInquiry?iURL:pURL);
+//    } catch (TransportException te) { 
+//      // probably should bundle up the exception in a response element
+//    }
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
     sendMessage(m);
   }

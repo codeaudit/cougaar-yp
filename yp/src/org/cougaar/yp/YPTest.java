@@ -95,15 +95,23 @@ public class YPTest extends ComponentSupport {
 
   String user = "cougaar";
   String pass = "cougaarPass";
-  String businessName = "Sample Co";
+  static String sampleName = "Sample Co";
+  static String sampleName2 = "Second Co";
 
 
   public void test(UDDIProxy proxy) {
-    testPutBusiness(proxy);
+    test (proxy, sampleName);
+  }
+
+  public void test(UDDIProxy proxy, String bName) {
+    testPutBusiness(proxy, bName);
+    testGetBusiness(proxy);
+    try { Thread.sleep (10000); }
+    catch (Exception e) { System.out.println ("Interrupted sleep"); }
     testGetBusiness(proxy);
   }
 
-  public void testPutBusiness(UDDIProxy proxy) {
+  public void testPutBusiness(UDDIProxy proxy, String businessName) {
     try {
       // Get an authorization token
       System.out.println("\nGet authtoken");
@@ -154,7 +162,7 @@ public class YPTest extends ComponentSupport {
       Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
       for (int i = 0; i < businessInfoVector.size(); i++) {
         BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
-        System.out.println(businessInfo.getNameString());
+        System.out.println("in put: business " + i + " = " + businessInfo.getNameString());
       }
 
       // Handle possible errors
@@ -197,7 +205,7 @@ public class YPTest extends ComponentSupport {
         BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
 
         // Print name for each business
-        System.out.println(businessInfo.getNameString());
+        System.out.println("in get: business " + i + " = " + businessInfo.getNameString());
       }
 
       // Handle possible errors
@@ -227,24 +235,37 @@ public class YPTest extends ComponentSupport {
    **/
 
   public static void main(String[] arg) {
-    YPServer yp = new YPServer();
-    yp.initDB();
-    yp.initUDDI();
-    StandaloneYPTransport transport = new StandaloneYPTransport(yp);
+    (new ServerThread (sampleName)).start();
+    try { Thread.sleep (2000); }
+    catch (Exception e) { System.out.println ("Interrupted sleep"); }
+    (new ServerThread (sampleName2)).start();
+  }
 
-    UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
+  private static class ServerThread extends Thread {
+    String bName;
 
-    try {
-      URL iurl = new URL("http","zoop", "frotz");
-      URL purl = new URL("https","zart", "glorp");
-      proxy.setInquiryURL(iurl);
-      proxy.setPublishURL(purl);
-    } catch (MalformedURLException e) { 
-      // cannot happen
+    public ServerThread (String bName) {
+      this.bName = bName;
     }
 
+    public void run() {
+      YPServer yp = new YPServer();
+      yp.initDB();
+      yp.initUDDI();
+      StandaloneYPTransport transport = new StandaloneYPTransport(yp);
 
-    new YPTest().test(proxy);
+      UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
+      try {
+        URL iurl = new URL("http","zoop", "frotz");
+        URL purl = new URL("https","zart", "glorp");
+        proxy.setInquiryURL(iurl);
+        proxy.setPublishURL(purl);
+      } catch (MalformedURLException e) { 
+        // cannot happen
+      }
+
+      new YPTest().test(proxy, bName);
+    }
   }
   
   private static class StandaloneYPTransport extends TransportBase {
@@ -255,10 +276,10 @@ public class YPTest extends ComponentSupport {
     /** Send the DOM element specified to the URL as interpreted by the MTS **/
     public Element send(Element el, java.net.URL url) throws TransportException {
       logger.debug("Transported query "+el);
-      describeElement(el);
+//      describeElement(el);
       Element resp = yp.executeQuery(serialize(el));
       logger.debug("Sending Response "+resp);
-      describeElement(resp);
+//      describeElement(resp);
       return serialize(resp);
     }
     private Element serialize(Element el) {
