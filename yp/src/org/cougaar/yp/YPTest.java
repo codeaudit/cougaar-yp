@@ -64,7 +64,7 @@ public class YPTest {
 
       // blocking wait
       {
-        YPResponse r = yps.submitQuery(q);
+        YPResponse r = yps.submitQuery(q, null);
         try {
           r.waitForIsAvailable();
         } catch (InterruptedException ie) {}
@@ -73,7 +73,7 @@ public class YPTest {
 
       // polling wait
       {
-        YPResponse r = yps.submitQuery(q);
+        YPResponse r = yps.submitQuery(q, null);
         while (! r.isAvailable()) {
           try {
             Thread.sleep(1000);       // wait a sec
@@ -84,9 +84,9 @@ public class YPTest {
 
       // callback
       {
-        YPResponse r = yps.submitQuery(q);
         Callback callback = new Callback();
-        r.addCallback(callback); // will callback immediately if already has the answer
+        YPResponse r = yps.submitQuery(q, callback);
+        //r.addCallback(callback); // will callback immediately if already has the answer
         try {
           callback.waitForCallback();
           report(r);
@@ -103,10 +103,9 @@ public class YPTest {
     public synchronized void run() { called = true; this.notify(); }
     public synchronized boolean isCalled() { return called; }
     public synchronized void waitForCallback() throws InterruptedException
-      { this.wait(); }
+    { if (!called) this.wait(); }
     public synchronized void waitForCallback(long timeout) throws InterruptedException
-      { this.wait(timeout); }
-
+    { if (!called) this.wait(timeout); }
   }
 
   /*

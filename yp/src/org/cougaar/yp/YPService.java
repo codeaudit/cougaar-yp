@@ -34,6 +34,10 @@ import org.cougaar.core.component.Service;
 public interface YPService extends Service {
   /** Submit a YPQuery object for execution.  Queries may be resubmitted.
    * @returns a YPResponse eventually containing the answer.
+   * @param callback If supplied, the callback's run() method will be invoked when
+   * YPResponse.isAvailable() will return true.  
+   * @note It is possible for the callback to be invoked before submitQuery returns, even
+   * in the thread of the caller.
    **/
-  YPResponse submitQuery(YPQuery query);
+  YPResponse submitQuery(YPQuery query, Runnable callback);
 }
