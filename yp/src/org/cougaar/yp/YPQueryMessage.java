@@ -33,7 +33,14 @@ import org.cougaar.core.mts.Message;
 import org.cougaar.core.mts.MessageAddress;
 
 public class YPQueryMessage extends YPMessage {
-  protected YPQueryMessage(MessageAddress s, MessageAddress d, Element el, Object key) {
+  private boolean isInquiry;
+
+  protected YPQueryMessage(MessageAddress s, MessageAddress d, Element el, boolean isInquiry, Object key) {
     super(s,d,el,key);
+    this.isInquiry = isInquiry;
+  }
+
+  boolean isInquiry() {
+    return isInquiry;
   }
 }

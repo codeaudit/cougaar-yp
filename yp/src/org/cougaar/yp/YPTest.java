@@ -54,9 +54,9 @@ public class YPTest {
 
     String company = "%foo%";
 
-    UDDIProxy proxy = yps.getUDDIProxy(); // zero arguments = default case
-    // MessageAddress serverName = new MessageAdress("SomeServerName");
-    // UDDIProxy proxy = yps.getUDDIProxy(serverName); // zero arguments = default case
+    UDDIProxy proxy = yps.getYP(null); // default the context
+    // MessageAddress serverName = "MyCommunity";
+    // UDDIProxy proxy = yps.getYP(serverName); // zero arguments = default case
 
     // no need to set the inquiryURL or publishURL
 

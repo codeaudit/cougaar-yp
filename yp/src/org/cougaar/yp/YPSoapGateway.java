@@ -51,27 +51,39 @@ public class YPSoapGateway extends ComponentSupport {
   private WaitQueue wq = new WaitQueue();
   private MessageAddress originMA;
   private ApacheSOAPTransport transport = null;
-  private URL soapURL = null;
+  private URL iURL = null;
+  private URL pURL = null;
 
 
   public void setParameter(Object o) {
     if (o instanceof List) {
       List l = (List)o;
-      if (l.size() > 0) {
+      if (l.size() > 1) {
         Object o1 = l.get(0);
         if (o1 instanceof URL) {
-          soapURL = (URL) o1;
+          iURL = (URL) o1;
         } else if (o1 instanceof String) {
           try {
-            soapURL = new URL((String) o1);
+            iURL = new URL((String) o1);
           } catch (Exception e) {
-            throw new ComponentLoadFailure("Bad URL parameter specified "+o1, this, e);
+            throw new ComponentLoadFailure("Bad inquiry URL parameter specified "+o1, this, e);
+          }
+        }
+
+        Object o2 = l.get(1);
+        if (o2 instanceof URL) {
+          pURL = (URL) o2;
+        } else if (o2 instanceof String) {
+          try {
+            pURL = new URL((String) o2);
+          } catch (Exception e) {
+            throw new ComponentLoadFailure("Bad post URL parameter specified "+o2, this, e);
           }
         }
       }
     }
-    if (soapURL == null) {
-      throw new ComponentLoadFailure("No URL parameter specified", this);
+    if (iURL == null || pURL == null) {
+      throw new ComponentLoadFailure("Not enough URL parameters specified", this);
     }
   }
 
@@ -103,8 +115,9 @@ public class YPSoapGateway extends ComponentSupport {
     Object key = r.getKey();
     Element qel = r.getElement();
     Element rel = null;
+    boolean isInquiry = r.isInquiry();
     try {
-      rel = transport.send(qel, soapURL);
+      rel = transport.send(qel, isInquiry?iURL:pURL);
     } catch (TransportException te) { 
       // probably should bundle up the exception in a response element
     }
