@@ -25,10 +25,13 @@ import org.uddi4j.client.*;
 import org.uddi4j.transport.*;
 
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import java.io.*;
 import java.net.*;
 import java.util.*;
+
+import org.cougaar.util.log.*;
 
 import org.cougaar.core.component.*;
 
@@ -51,6 +54,7 @@ import com.induslogic.uddi.*;
  **/
 
 public class YPServer extends ComponentSupport {
+  private static final Logger logger = Logging.getLogger(YPServer.class);
   
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
@@ -58,6 +62,7 @@ public class YPServer extends ComponentSupport {
   public void initialize() {
     super.initialize();
 
+    initUDDI();
     initDB();
 
     // this should probably go into load
@@ -93,9 +98,13 @@ public class YPServer extends ComponentSupport {
   }
 
   public static final String DB_DRIVER = "org.hsqldb.jdbcDriver";
-  public static final String DB_URL = "jdbc:hsqldb:.";
+  //public static final String DB_URL = "jdbc:hsqldb:.";
+  public static final String DB_FILE = "foodb";
+  public static final String DB_URL = "jdbc:hsqldb:"+DB_FILE;
   public static final String DB_USER = "sa";
   public static final String DB_PASS = "";
+
+  private Connection theConnection = null;
 
   void executeSQL(Connection c, String sql) throws SQLException {
     Statement s = c.createStatement();
@@ -107,10 +116,8 @@ public class YPServer extends ComponentSupport {
     try {
       con = getDBConnection();
 
-      SoapRequest soapRequest = new SoapRequest(qel); // requires mod
-      SoapBody body = new SoapBody( soapRequest.getElementNS( "*", UddiTags.SOAP_BODY));
-      String apiName = body.getApiName();
-      UddiObject param = body.getApiParam();
+      String apiName = qel.getNodeName();
+      UddiObject param = new UddiObject(qel);
 
       UddiService uService = new UddiService(con);
       UddiObject obj = uService.invokeAppropriateApi(apiName, param);
@@ -122,8 +129,8 @@ public class YPServer extends ComponentSupport {
       } catch (Exception e) {
         try {
           if (con != null) {
-            con.rollback();
-            con.close();
+            //con.rollback();
+            //con.close();
           }
         }
         catch ( Exception e1){
@@ -132,6 +139,17 @@ public class YPServer extends ComponentSupport {
         e.printStackTrace();
         return null;
     } 
+  }
+  
+  static void describeElement(Node el) { describeElement(el,""); }
+  static void describeElement(Node el,String prefix) { 
+    System.out.println(prefix+el);
+    String pn = prefix+" ";
+    if (el.hasChildNodes()) {
+      for (Node c = el.getFirstChild(); c!= null; c = c.getNextSibling()) {
+        describeElement(c, pn);
+      }
+    }
   }
 
 
@@ -148,10 +166,21 @@ public class YPServer extends ComponentSupport {
 
 
   void initDB() {
+    try {
+      File f = new File(DB_FILE+".data");
+      if (f.exists()) {
+        f.delete();
+        new File(DB_FILE+".properties").delete();
+        new File(DB_FILE+".script").delete();
+      }
+    } catch (Exception e) {}
+
     Connection con = null;
     try {
-      con = getDBConnection();
+      theConnection = getDBConnection();
+      con = theConnection;
       executeSQL(con, CT_1);
+      executeSQL(con, CT_1a);
       executeSQL(con, CT_2);
       executeSQL(con, CT_3);
       executeSQL(con, CT_4);
@@ -165,11 +194,13 @@ public class YPServer extends ComponentSupport {
       executeSQL(con, CT_12);
       executeSQL(con, CT_13);
       executeSQL(con, CT_14);
+      //con.commit();
+      con.close();
     } catch (Exception e) {
       try {
         if (con != null) {
-          con.rollback();
-          con.close();
+          //con.rollback();
+          //con.close();
         }
       } catch ( Exception e1){
         e1.printStackTrace();
@@ -179,10 +210,22 @@ public class YPServer extends ComponentSupport {
     } 
   }
 
+  void initUDDI() {
+    Properties props = new Properties();
+    props.setProperty("operator", "Cougaar");
+    props.setProperty("user",DB_USER);
+    props.setProperty("passwd",DB_PASS);
+    props.setProperty("authorisedName","auser");
 
+    props.setProperty("Class", DB_DRIVER);
+    props.setProperty("URL", DB_URL);
+
+    com.induslogic.uddi.server.util.GlobalProperties.loadProperties(props);
+  }
 
   private final static String CT_1 = "CREATE TABLE passwords ( uddi_userid varchar (50)  , uddi_password varchar (50)  , CONSTRAINT PK_passwords PRIMARY KEY ( uddi_userid ) ) ";
 
+  private final static String CT_1a = "INSERT into passwords values ('cougaar','cougaarPass')";
 
   private final static String CT_2 = "CREATE TABLE authentiTokens ( uddi_userid varchar (50)  , uddi_keys varchar (50)  , uddi_validTill varchar (50)  , CONSTRAINT PK_authentiTokens PRIMARY KEY ( uddi_userid ) , CONSTRAINT FK_aT_passwords FOREIGN KEY ( uddi_userid ) REFERENCES passwords ( uddi_userid ) ) ";
 
@@ -220,8 +263,59 @@ public class YPServer extends ComponentSupport {
   private final static String CT_14 = "CREATE TABLE instanceDetailDescriptions ( uddi_bindingkey varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_descType varchar (50)  , uddi_description varchar (255)  , uddi_lang varchar (50) ) ";
 
 
+  // 
+  // the rest is a hack test lash-up
+  //
+
   public static void main(String[] arg) {
     YPServer yp = new YPServer();
     yp.initDB();
+    yp.initUDDI();
+    YPTransport transport = new YPTransport(yp);
+
+    UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
+
+    try {
+      URL iurl = new URL("http","zoop", "frotz");
+      URL purl = new URL("https","zart", "glorp");
+      proxy.setInquiryURL(iurl);
+      proxy.setPublishURL(purl);
+    } catch (MalformedURLException e) { 
+      // cannot happen
+    }
+
+    new YPTest().test(proxy);
+  }
+  
+  private static class YPTransport extends TransportBase {
+    private YPServer yp;
+    YPTransport(YPServer yp) {
+      this.yp = yp;
+    }
+    /** Send the DOM element specified to the URL as interpreted by the MTS **/
+    public Element send(Element el, java.net.URL url) throws TransportException {
+      logger.warn("Transported query "+el);
+      describeElement(el);
+      Element resp = yp.executeQuery(serialize(el));
+      logger.warn("Sending Response "+resp);
+      describeElement(resp);
+      return serialize(resp);
+    }
+    private Element serialize(Element el) {
+      try {
+      ByteArrayOutputStream outbytes = new ByteArrayOutputStream();
+      ObjectOutputStream oos = new ObjectOutputStream(outbytes);
+      oos.writeObject(el);
+      oos.close();
+      ByteArrayInputStream inbytes = new ByteArrayInputStream(outbytes.toByteArray());
+      ObjectInputStream ois = new ObjectInputStream(inbytes);
+      Element rv = (Element) ois.readObject();
+      ois.close();
+      return rv;
+      } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+      }
+    }
   }
 }

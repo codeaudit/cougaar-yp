@@ -52,24 +52,109 @@ public class YPTest {
     // hack to compile
     YPService yps = null;  // new FakeYPServer();
 
-    String company = "%foo%";
-
     UDDIProxy proxy = yps.getYP(null); // default the context
+    // we'd usually use:
     // MessageAddress serverName = "MyCommunity";
-    // UDDIProxy proxy = yps.getYP(serverName); // zero arguments = default case
+    // UDDIProxy proxy = yps.getYP(serverName);
 
-    // no need to set the inquiryURL or publishURL
+    test(proxy);
+  }
 
-    Vector names = new Vector();
-    names.add(new Name("S"));
+  String user = "cougaar";
+  String pass = "cougaarPass";
+  String businessName = "Sample Co";
 
-    // Setting FindQualifiers to 'caseSensitiveMatch'
-    FindQualifiers findQualifiers = new FindQualifiers();
-    Vector qualifier = new Vector();
-    qualifier.add(new FindQualifier("caseSensitiveMatch"));
-    findQualifiers.setFindQualifierVector(qualifier);
 
+  public void test(UDDIProxy proxy) {
+    testPutBusiness(proxy);
+    testGetBusiness(proxy);
+  }
+
+  public void testPutBusiness(UDDIProxy proxy) {
     try {
+      // Get an authorization token
+      System.out.println("\nGet authtoken");
+
+      // Pass in userid and password registered at the UDDI site
+      AuthToken token = proxy.get_authToken(user, pass);
+
+      System.out.println("Returned authToken:" + token.getAuthInfoString());
+
+      System.out.println("\nSave '" + businessName + "'");
+
+      // Create minimum required data objects
+      Vector entities = new Vector();
+
+      // Create a new business entity using required elements constructor
+      // Name is the business name. BusinessKey must be "" to save a new
+      // business
+      BusinessEntity be = new BusinessEntity("", businessName);
+      entities.addElement(be);
+
+      // Save business
+      BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
+
+      // Process returned BusinessDetail object
+      Vector businessEntities = bd.getBusinessEntityVector();
+      BusinessEntity returnedBusinessEntity = (BusinessEntity)(businessEntities.elementAt(0));
+      System.out.println("Returned businessKey:" + returnedBusinessEntity.getBusinessKey());
+
+      // Find all businesses that start with that particular letter e.g. 'S' for 'Sample Business'.
+      String businessNameLeadingSubstring = businessName.substring (0,1);
+      System.out.println("\nListing businesses starting with " + businessNameLeadingSubstring
+                         + " after we publish");
+
+      //creating vector of Name Object
+      Vector names = new Vector();
+      names.add(new Name(businessNameLeadingSubstring));
+
+      // Setting FindQualifiers to 'caseSensitiveMatch'
+      FindQualifiers findQualifiers = new FindQualifiers();
+      Vector qualifier = new Vector();
+      qualifier.add(new FindQualifier("caseSensitiveMatch"));
+      findQualifiers.setFindQualifierVector(qualifier);
+
+      // Find businesses by name
+      // And setting the maximum rows to be returned as 5.
+      BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+
+      Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+      for (int i = 0; i < businessInfoVector.size(); i++) {
+        BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
+        System.out.println(businessInfo.getNameString());
+      }
+
+      // Handle possible errors
+    } catch (UDDIException e) {
+      DispositionReport dr = e.getDispositionReport();
+      if (dr!=null) {
+        System.out.println("UDDIException faultCode:" + e.getFaultCode() +
+                           "\n operator:" + dr.getOperator() +
+                           "\n generic:"  + dr.getGeneric() +
+                           "\n errno:"    + dr.getErrno() +
+                           "\n errCode:"  + dr.getErrCode() +
+                           "\n errInfoText:" + dr.getErrInfoText());
+      }
+      e.printStackTrace();
+
+      // Catch any other exception that may occur
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  } 
+
+  public void testGetBusiness(UDDIProxy proxy) {
+    try {
+      //creating vector of Name Object
+      Vector names = new Vector();
+      names.add(new Name("S"));
+
+      // Setting FindQualifiers to 'caseSensitiveMatch'
+      FindQualifiers findQualifiers = new FindQualifiers();
+      Vector qualifier = new Vector();
+      qualifier.add(new FindQualifier("caseSensitiveMatch"));
+      findQualifiers.setFindQualifierVector(qualifier);
+
       // Find businesses by name
       // And setting the maximum rows to be returned as 5.
       BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
@@ -96,11 +181,12 @@ public class YPTest {
       e.printStackTrace();
 
       // Catch any other exception that may occur
-    } catch (Exception e) {
-      e.printStackTrace();
+    } catch (Exception ex) {
+      ex.printStackTrace();
     }
   }
-}    
+
+
   /*
     // this was from the original JAXR code - preserved because I want to 
     // add asynchronous mode to the UDDI interface.
@@ -155,3 +241,6 @@ public class YPTest {
     { if (!called) this.wait(timeout); }
   }
   */
+
+}
+
