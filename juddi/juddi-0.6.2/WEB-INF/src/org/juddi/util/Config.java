@@ -13,6 +13,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 import java.util.Enumeration;
+import java.util.HashMap;
 
 /**
  * This class provides read access to key/value pairs loaded from the
@@ -74,9 +75,21 @@ public class Config
 
   private static final String propertiesFileName = "juddi.properties";
   private static Properties properties; // configuration properties
-  private static File homeDir; // top level directory
-  private static File confDir; // conf file directory
 
+  // Use Config.dbTag as the HashMap key. So ... if process is using more than
+  // 1 database, must set dbTag before each interaction. Connections are not
+  // re-entrant so only one thread can be using a connection at a time.
+  private static HashMap homeDirMap = new HashMap();
+  private static HashMap confDirMap = new HashMap();
+
+  //private static File homeDir; // top level directory
+  //private static File confDir; // conf file directory
+
+  public static ThreadLocal dbTag = new ThreadLocal() {
+    protected synchronized Object initialValue() {
+      return new String("");
+    }
+  };
   /**
    * Initialization block - executed when the class loads.
    *
@@ -339,9 +352,13 @@ public class Config
    */
   public static String getHomeDir()
   {
-    if(homeDir==null)
+    File homeDir = (File) homeDirMap.get(dbTag.get());
+
+    if(homeDir==null) {
       initDirectories();
 
+      homeDir = (File) homeDirMap.get(dbTag.get());
+    }
     return homeDir.getPath();
   }
 
@@ -353,8 +370,12 @@ public class Config
    */
   public static String getConfigDir()
   {
-    if(confDir==null)
+    File confDir  = (File) confDirMap.get(dbTag.get());
+
+    if(confDir==null) {
       initDirectories();
+      confDir = (File) confDirMap.get(dbTag.get());
+    }
 
     return confDir.getPath();
   }
@@ -564,33 +585,43 @@ public class Config
    */
   private static synchronized void initDirectories()
   {
+    File homeDir = (File) homeDirMap.get(dbTag.get());
+
     // Don't bother with this if simultaneous thread got to it first
-    if(homeDir == null)
-    {
+    if (homeDirMap.get(dbTag.get()) == null) {
       // Pull jUDDI home directory value out of the System class
       String dir = System.getProperty("juddi.homeDir");
       if(dir == null)
         throw new RuntimeException("juddi.homeDir jvm parameter has not been " +
           "properly set. jUDDI cannot function properly without this value.");      
-      
-      homeDir = new File(dir);
+
+      if (!dbTag.get().equals("")) {
+        homeDir = new File(dir, (String) dbTag.get());
+      } else {
+	homeDir = new File(dir);
+      }
       
       // Try to access the home directory
-      if(!homeDir.isDirectory())
-      {
-        throw new RuntimeException("jUDDI home directory " + 
-          homeDir.getAbsolutePath() + " doesn't exist or cannot be accessed!");
+      if(!homeDir.isDirectory()) {
+	if (!homeDir.mkdirs()) {
+	  throw new RuntimeException("jUDDI home directory " + 
+				     homeDir.getAbsolutePath() + 
+				     " doesn't exist or cannot be accessed!");
+	}
       }
-    }
 
-    // Now ensure that the conf dir has been set.
-    if(confDir==null)
-      confDir = new File(homeDir.getPath() + File.separator + "conf");
+      homeDirMap.put(dbTag.get(), homeDir);
 
-    if(!confDir.isDirectory())
-    {
-      throw new RuntimeException("jUDDI conf directory " + 
-        confDir.getAbsolutePath() + " doesn't exist or cannot be accessed!");
+      // Now ensure that the conf dir has been set.
+      File confDir = new File(homeDir.getPath() + File.separator + "conf");
+	
+      if(!confDir.isDirectory())
+	if (!confDir.mkdirs()) {
+	  throw new RuntimeException("jUDDI conf directory " + 
+				     confDir.getAbsolutePath() + 
+				     " doesn't exist or cannot be accessed!");
+	}
+      confDirMap.put(dbTag.get(), confDir);
     }
   }
 

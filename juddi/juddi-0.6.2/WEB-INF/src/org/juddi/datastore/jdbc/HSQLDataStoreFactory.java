@@ -13,6 +13,7 @@ import org.juddi.util.Config;
 
 import org.apache.log4j.Logger;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -36,7 +37,7 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   private static Logger log = Logger.getLogger(HSQLDataStoreFactory.class);
 
   private static final String jdbcDriver    = "org.hsqldb.jdbcDriver";
-  private static final String jdbcURL       = "jdbc:hsqldb:" + Config.getHomeDir() + "/hsql/juddidb";
+  //private static final String jdbcURL       = "jdbc:hsqldb:" + Config.getHomeDir() + "/hsql/juddidb";
   private static final String inMemoryURL   = "jdbc:hsqldb:.";
   private static final String jdbcUserID    = "sa";
   private static final String jdbcPassword  = "";
@@ -44,15 +45,11 @@ public class HSQLDataStoreFactory extends DataStoreFactory
 
   private static final boolean inMemory = Config.getInMemoryDatabase();
 
-  public static ThreadLocal dbTag = new ThreadLocal() {
-    protected synchronized Object initialValue() {
-      return new String("");
-    }
-  };
 
 
-  // Use dbTag as the HashMap key. So ... if process is using more than 1 
-  // database, must set dbTag before each interaction. Connections are not
+
+  // Use Config.dbTag as the HashMap key. So ... if process is using more than
+  // 1 database, must set dbTag before each interaction. Connections are not
   // re-entrant so only one thread can be using a connection at a time.
   private static HashMap cachedConnections = new HashMap();
 
@@ -74,21 +71,21 @@ public class HSQLDataStoreFactory extends DataStoreFactory
 
   /**
    * using this function will allow different URLs for different threads. 
-   * Thread must set ThreadLocal dbTag() before invoking JUDDI.
+   * Thread must set ThreadLocal Config.dbTag() before invoking JUDDI.
    */
   private static String jdbcURL() {
-    if (!dbTag.get().equals("")) {
-      return "jdbc:hsqldb:" + Config.getHomeDir() + "/hsql/" + dbTag.get() + "/juddidb";
-    } else {
-      return jdbcURL;
-    }
+    System.out.println("jdbcURL = " + "jdbc:hsqldb:" + Config.getHomeDir() +
+		       File.separator + "hsql" + File.separator + 
+		       "juddidb");
+    return "jdbc:hsqldb:" + Config.getHomeDir() + File.separator + 
+      "hsql" + File.separator + "juddidb";
   }
 
   /**
    * using this function will allow JUDDI to use both file and memory based 
    * HSQL instances.
    */
-  private static String getURL() {
+  public static String getURL() {
     String url = inMemory ? inMemoryURL : jdbcURL();
     return url;
   }
@@ -98,14 +95,14 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    */
   public DataStore aquireDataStore()
   {
-    Connection connection = (Connection) cachedConnections.get(dbTag.get());
+    Connection connection = (Connection) cachedConnections.get(Config.dbTag.get());
     
     if (connection == null) {
       try {
         connection = DriverManager.getConnection(getURL(), 
 						 jdbcUserID, 
 						 jdbcPassword);
-	cachedConnections.put(dbTag.get(), connection);
+	cachedConnections.put(Config.dbTag.get(), connection);
       } catch(SQLException sqlex) {
         log.error("Exception occured while attempting to create a " +
 		  "new JDBC connection: for getURL() " + sqlex.getMessage());
@@ -123,15 +120,15 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   }
 
   /**
-   * Get cached connection associated with ThreadLocal dbTag.
-   * If process is using more than 1 database,  must set dbTag before each 
+   * Get cached connection associated with ThreadLocal Config.dbTag.
+   * If process is using more than 1 database,  must set Config.dbTag before each 
    * interaction. Connections are not re-entrant so only one thread can be 
    * using a connection at a time.
    *
    */
   public Connection getConnection()
   {
-    return (Connection) cachedConnections.get(dbTag.get());
+    return (Connection) cachedConnections.get(Config.dbTag.get());
   }
   /**
    * Get cached connection associated with ThreadLocal dbTag.
@@ -142,15 +139,15 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    */
   public static boolean closeConnection()
   {
-    Connection connection = (Connection) cachedConnections.get(dbTag.get());
+    Connection connection = (Connection) cachedConnections.get(Config.dbTag.get());
     
     if (connection != null) {
       try {
 	connection.close();
-	cachedConnections.remove(dbTag.get());
+	cachedConnections.remove(Config.dbTag.get());
       } catch(SQLException sqlex) {
         log.error("Exception occured while attempting to close a " +
-		  "JDBC connection: for " + dbTag.get() + sqlex.getMessage());
+		  "JDBC connection: for " + Config.dbTag.get() + sqlex.getMessage());
 	return false;
       }
     }
