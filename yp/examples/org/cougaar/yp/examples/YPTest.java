@@ -19,7 +19,8 @@
  * </copyright>
  */
 
-package org.cougaar.yp;
+package org.cougaar.yp.examples;
+import org.cougaar.yp.*;
 
 // import all of uddi4j
 import org.uddi4j.*;

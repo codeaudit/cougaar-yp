@@ -19,7 +19,9 @@
  * </copyright>
  */
 
-package org.cougaar.yp;
+package org.cougaar.yp.examples;
+
+import org.cougaar.yp.*;
 
 import org.uddi4j.client.*;
 import org.uddi4j.transport.*;
@@ -67,10 +69,23 @@ public class YPSamplePlugin extends ComponentPlugin {
   IncrementalSubscription futures;
   YPService yps;
   YPProxy yp;
-  YPFuture fut = null;
   int count = 0;
 
   long startTime = 0L;
+
+  private Object flock = new Object();
+  YPFuture fut = null;
+  void setFut(YPFuture f) { 
+    synchronized (flock) {
+      fut = f;
+    }
+  }
+  YPFuture getFut() {
+    synchronized (flock) {
+      return fut;
+    }
+  }
+
 
   public void setYPService(YPService yps) {
     yps = (YPService) getServiceBroker().getService(this, YPService.class, null);
@@ -93,43 +108,55 @@ public class YPSamplePlugin extends ComponentPlugin {
     Vector qualifier = new Vector();
     qualifier.add(new FindQualifier("caseSensitiveMatch"));
     findQualifiers.setFindQualifierVector(qualifier);
-    fut = yp.find_business(names, null, null, null,null,findQualifiers,5);
+    setFut(yp.find_business(names, null, null, null,null,findQualifiers,5));
     count++;
-    if (count == 2) { startTime = System.currentTimeMillis(); }
-    blackboard.publishAdd(fut);
-    System.out.println("Issued query "+count+": "+fut);
-    return fut;
+    if (count == 5) { startTime = System.currentTimeMillis(); }
+    //System.err.println("Issued query "+count); //+": "+fut
+    //System.err.println("ISSUE "+getFut());
+    blackboard.publishAdd(getFut());
+    return getFut();
   }
 
-  void report() {
-    System.out.println("Closing query "+count+": "+fut);
+  void report(YPFuture f) {
+    //System.err.println("Closing query "+count); //+": "+fut
     try {
-      BusinessList businessList = (BusinessList) fut.get();
+      Object o = f.get();
+      if (o instanceof BusinessList) {
+        BusinessList businessList = (BusinessList)o;
+        
 
-      Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
-      for (int i = 0; i < businessInfoVector.size(); i++) {
-        BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
+        Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+        for (int i = 0; i < businessInfoVector.size(); i++) {
+          BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
 
-        // Print name for each business
-        //System.out.println("report "+count+": business " + i + " = " + businessInfo.getNameString());
+          // Print name for each business
+          //System.err.println("report "+count+": business " + i + " = " + businessInfo.getNameString());
+        }
+      } else {
+        System.err.println("Didn't get a BusinessList response: "+o);
       }
     } catch (Exception e) {
+      System.err.println("Error reporting on "+f);
       e.printStackTrace();
     }
-    blackboard.publishRemove(fut);
+    //System.err.println("CLOSE "+f);
+    blackboard.publishRemove(f);
     long et = System.currentTimeMillis();
-    double rate = (((double) (count-1))/(et - startTime))*1000.0;
-    System.out.println("----------> Round trip rate = "+rate+" transactions/sec");
-    fut = null;
+    double rate = (((double) ((count-5)+1))/(et - startTime))*1000.0;
+    System.err.println("Sample rate="+rate+"t/s");
+    setFut(null);
   }
 
   protected void execute() {
-    if (fut.isReady()) {
-      report();
-      issue();
-    } else {
-      System.out.println("&");
+    Collection changed = futures.getChangedCollection();
+    for (Iterator it = changed.iterator(); it.hasNext(); ) {
+      YPFuture f = (YPFuture) it.next();
+      if (f.isReady()) {
+        report(f);  // sets fut=null
+        issue();   // sets fut=new fut
+      } else {
+        System.err.println("Query changed but not ready: "+f);
+      }
     }
   }
-
 }

@@ -23,6 +23,7 @@ package org.cougaar.yp;
 
 import org.w3c.dom.Element;
 import org.uddi4j.UDDIException;
+import org.cougaar.util.log.*;
 
 
 // we could base the implementation on concurrent.FutureResult
@@ -61,11 +62,15 @@ public interface YPFuture {
    * the response is ready.  Most clients will use the Blackboard
    * interation pattern and look for publishChange events rather
    * than registering for explicit callbacks.
+   * Only Callback and Callable instances are actually accepted.<p>
+   * Callers are <em>STRONGLY</em> encouraged to use OneShotMachine
+   * instead of direct callbacks if the callback requires significant
+   * processing or if there is a chance that the callback will block.
    * @note If the response is already ready, then the callback
    * will be invoked immediately in the thread of the caller.
    * @note Only one Callback may be attached.
    **/
-  void setCallback(Callback callable);
+  void setCallback(YPComplete callable);
 
   /** Access the XML element describing the query **/
   Element getElement();
@@ -73,17 +78,42 @@ public interface YPFuture {
   /** Is the message a query? **/
   boolean isInquiry();
 
-  /** In which context was this query issued **/
-  String getInitialContext();
+  /** In which context was this query issued 
+   *  @return Object is either a MessageAddress or a Community. 
+   *  @note If the context is a Community the YP resolver will use the community 
+   *  hierarchy to resolve queries which have no match in the initial context. No
+   *  such search occurs if the initial context is a MessageAddress.
+   **/
+  Object getInitialContext();
 
-  /** In which context was this query resolved **/
-  String getFinalContext();
-  
+  /** In which context was this query resolved 
+   *  @return Object is either a MessageAddress or a Community
+   **/
+  Object getFinalContext();
+
+  /** Search mode to be used in resolving this query.
+   *  @return int is one of the values defined by YPProxy.SearchMode
+   **/
+  int getSearchMode();
   /** The interface which must be implemented by the argument to #setCallback(Callback) **/
-  interface Callback {
+  interface YPComplete {
+  }
+
+  /** Event notification Callback, invoked when there is an answer in the YPFuture **/
+  interface Callback extends YPComplete {
     /** The result posting mechanism will invoke this method as soon as #isReady() will return
      * true.
      **/
     void ready(YPFuture response);
   }
+
+  /** Higher-level callback abstraction.  Similar to Callback but passes in the results rather that
+   * just notification of interaction completeness events.
+   * @note The interface assumes that all important information is closed over by the instance.
+   **/
+  interface ResponseCallback extends YPComplete {
+    void invoke(Object result);
+    void handle(Exception e);
+  }
 }
+

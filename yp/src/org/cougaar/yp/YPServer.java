@@ -2,11 +2,11 @@
  * <copyright>
  *  Copyright 2002-2003 BBNT Solutions, LLC
  *  under sponsorship of the Defense Advanced Research Projects Agency (DARPA).
- * 
+ *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the Cougaar Open Source License as published by
  *  DARPA on the Cougaar Open Source Website (www.cougaar.org).
- * 
+ *
  *  THE COUGAAR SOFTWARE AND ANY DERIVATIVE SUPPLIED BY LICENSOR IS
  *  PROVIDED 'AS IS' WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS OR
  *  IMPLIED, INCLUDING (BUT NOT LIMITED TO) ALL IMPLIED WARRANTIES OF
@@ -24,6 +24,7 @@ package org.cougaar.yp;
 import org.uddi4j.UDDIElement;
 import org.uddi4j.client.*;
 import org.uddi4j.transport.*;
+import org.uddi4j.response.DispositionReport;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -41,18 +42,21 @@ import org.cougaar.util.log.*;
 
 import org.cougaar.core.component.*;
 
-import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
+import org.cougaar.core.mts.*;
+import org.cougaar.core.service.AgentIdentificationService;
 import org.cougaar.util.ConfigFinder;
+import org.cougaar.util.CircularQueue;
+
+import org.cougaar.core.service.ThreadService;
+import org.cougaar.core.thread.*;
+
+// persistence support
+import org.cougaar.core.persist.*;
 
 // database connection support
 import java.sql.*;
-
-// soaduddi imports
-//import com.induslogic.uddi.server.service.*;
-//import com.induslogic.uddi.server.util.*;
-//import com.induslogic.uddi.*;
 
 // juddi imports
 import org.juddi.datastore.jdbc.CreateDatabase;
@@ -60,11 +64,12 @@ import org.juddi.datastore.jdbc.HSQLDataStoreFactory;
 import org.juddi.service.ServiceFactory;
 import org.juddi.service.UDDIService;
 import org.juddi.transport.axis.RequestFactory;
+import org.juddi.error.JUDDIException;
 
 
 /**
  * This is the basic in-memory YP Server component.
- * We use soapuddi to deal with the queries and 
+ * We use soapuddi to deal with the queries and
  * hsqldb in in-memory mode as a database.
  **/
 
@@ -72,34 +77,70 @@ public class YPServer extends ComponentSupport {
   private static final Logger logger = Logging.getLogger(YPServer.class);
 
   // create an XML document builder factory
-  private static DocumentBuilderFactory documentBuilderFactory = 
+  private static DocumentBuilderFactory documentBuilderFactory =
     DocumentBuilderFactory.newInstance();
 
   private DocumentBuilder builder;
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
+  private AgentIdentificationService agentIdentificationService;
 
   private DocumentBuilder getBuilder() {
     if (builder == null) {
       try {
         builder = documentBuilderFactory.newDocumentBuilder();
       } catch (Exception e) {
-        logger.error ("Could not create builder factory");
+        logger.error("Could not create builder factory", e);
       }
     }
     return builder;
   }
 
+  /** threading service for launching our service thread, set by introspection **/
+  private ThreadService threadService;
+  public void setThreadService(ThreadService ts) { this.threadService = ts; }
+
+  // must use explicit getService
+  private PersistenceService persistenceService;
+  private PersistenceIdentity persistenceIdentity = new PersistenceIdentity(YPServer.class.getName());
+
+  protected final String installPath = System.getProperty("org.cougaar.install.path", "/tmp");
+  protected final String workspacePath = System.getProperty("org.cougaar.workspace", installPath + "/workspace");
+  protected final String juddiHomeDirPath;
+  protected final File juddiHomeDir;
+  protected File dbDirectory;
+
+  public YPServer() {
+    String hp = System.getProperty("juddi.homeDir", "");
+    if (hp.equals("")) {
+      hp = workspacePath + "/juddi";
+      System.setProperty("juddi.homeDir", hp);
+    }
+    juddiHomeDirPath = hp;
+
+    juddiHomeDir = new File(juddiHomeDirPath);
+  }
+
   public void initialize() {
     super.initialize();
-    initUDDI();
-    initDB();
-    
+    ServiceBroker sb = getServiceBroker();
+
     // this should probably go into load
+
+    persistenceService = (PersistenceService) sb.getService(new PersistenceClient() {
+        public PersistenceIdentity getPersistenceIdentity() { return persistenceIdentity; }
+        public List getPersistenceData() { return encapsulateDatabase(); }
+      }, 
+                                                            PersistenceService.class,
+                                                            null);
+   
+    RehydrationData rd = persistenceService.getRehydrationData();
+    if (rd != null) {
+      deencapsulateDatabase(rd);
+    }
 
     // Must get the MessageSwitchService and MessageAddress before
     // registering the MessageHandler - cause messages may start pouring in
-    ServiceBroker sb = getServiceBroker();
     mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
     if (mss == null) {
       throw new RuntimeException("YPServer couldnt get MessageSwitchService!");
@@ -110,17 +151,29 @@ public class YPServer extends ComponentSupport {
       throw new RuntimeException("YPServer got null MessageAddress for local Agent from MessageSwitchService!");
     }
 
+    juddiHomeDir.mkdirs();
+    File td = new File(juddiHomeDir, "hsql");
+    dbDirectory = new File(td, originMA.toString());
+    dbDirectory.mkdirs();
+
+    initUDDI();
+    initDB();                   // uses rehydrated database information, if available
+
+    startServiceThread();
+
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
         public boolean handleMessage(Message message) {
-	  if (logger.isDebugEnabled()) {
-	    logger.debug("handleMessage: source " + message.getOriginator() +
-			 " target " + message.getTarget() + 
-			 " key " + ((YPQueryMessage) message).getKey() + 
-			 " element " + ((YPQueryMessage) message).getElement());
-	  }
           if (message instanceof YPQueryMessage) {
-            dispatchQuery((YPQueryMessage) message);
+            if (logger.isDebugEnabled()) {
+              logger.debug("handleMessage: source " + message.getOriginator() +
+                           " target " + message.getTarget() +
+                           " key " + ((YPQueryMessage) message).getKey() +
+                           " element " + ((YPQueryMessage) message).getElement());
+            }
+
+	    
+            getServiceThread().addMessage((YPQueryMessage) message);
             return true;
           }
           return false;
@@ -130,9 +183,117 @@ public class YPServer extends ComponentSupport {
     mss.addMessageHandler(mh);
   }
 
+  public void suspend() {
+    if (logger.isInfoEnabled()) {
+      logger.info(originMA.toString() + " suspending");
+    }
+      
+    // suspend all children
+    if (logger.isInfoEnabled()) {
+      logger.info(originMA.toString() + "Recursively suspending all child components");
+    }
+    super.suspend();
+    
+    if (logger.isInfoEnabled()) {
+      logger.info(originMA.toString() + 
+		  " dropping database connection for persistence snapshot" );
+    }
+    
+    org.juddi.datastore.jdbc.HSQLDataStoreFactory.dbTag.set(originMA.toString());
+    org.juddi.datastore.jdbc.HSQLDataStoreFactory.closeConnection();
+
+    getServiceBroker().releaseService(this, AgentIdentificationService.class, 
+				      agentIdentificationService);
+
+    getServiceBroker().releaseService(this, MessageSwitchService.class, 
+				      mss);
+    /*
+    getServiceBroker().releaseService(this, PersistenceService.class,
+				      persistenceService);
+				      */
+    getServiceBroker().releaseService(this, ThreadService.class,
+				      threadService);
+  }
+
+  public void resume() {
+    super.resume();
+    
+    // Restart database????
+  }
+
+  //
+  // persistence
+  // 
+  private List encapsulateDatabase() {
+
+    List l = new ArrayList(1);
+    DatabaseEnvelope de = getDatabaseEnvelope();
+    DatabaseEnvelope.logger.info("Encapsulating database "+de);
+    l.add(de);
+    return l;
+  }
+
+  private void deencapsulateDatabase(RehydrationData rd) {
+    List l = rd.getObjects();
+    try {
+      DatabaseEnvelope de = (DatabaseEnvelope) l.get(0);
+      DatabaseEnvelope.logger.info("Dencapsulating database "+de);
+      setDatabaseEnvelope(de);
+    } catch (Exception e) {     // arrayOOB, classcast, etc
+      logger.error("Persistence snapshot objects corrupt", e);
+    }
+  }
+
+  private DatabaseEnvelope databaseEnvelope = null;
+  private final DatabaseEnvelope.Locker databaseLocker = new DatabaseEnvelope.Locker() {
+      public void stop() { }
+      public void start() { }
+    };
+
+  protected DatabaseEnvelope getDatabaseEnvelope() {
+    synchronized (databaseLocker) {
+      return databaseEnvelope;
+    }
+  }
+  // mutations of the database should create a new DBE instance and set 
+  protected void setDatabaseEnvelope(DatabaseEnvelope de) {
+    synchronized (databaseLocker) {
+      databaseEnvelope = de;
+    }
+  }
+
+  /** Called each time the database is modified **/
+  private void snapshotDatabase() {
+    synchronized (databaseLocker) {
+      databaseEnvelope = new DatabaseEnvelope(dbDirectory, databaseLocker);
+    }
+  }
+
+
+  //
+  // Service thread for incoming (response) messages
+  //
+
+  private ServiceThread serviceThread = null;
+  private void startServiceThread() {
+    serviceThread = new ServiceThread( new ServiceThread.Callback() {
+        public void dispatch(Message m) {
+	  org.juddi.datastore.jdbc.HSQLDataStoreFactory.dbTag.set(originMA.toString());
+          dispatchQuery((YPQueryMessage)m);
+        }},
+                                       logger,
+                                       "YPServer("+originMA+")");
+    serviceThread.start(threadService);
+  }
+
+  protected ServiceThread getServiceThread() {
+    return serviceThread;
+  }
+
+  private int rc = 0;
   private synchronized void dispatchQuery(YPQueryMessage r) {
     if (logger.isDebugEnabled()) {
-      logger.debug("\n\n\n\n dispatchQuery: query - " + r.getKey() + " " + 
+      logger.debug("dispatchQuery: query: " + r.getKey() + " " +
 		  r.getElement());
     }
 
@@ -140,16 +301,23 @@ public class YPServer extends ComponentSupport {
     Element qel = r.getElement();
     Element rel = null;
     boolean isInquiry = r.isInquiry();
-    rel = executeQuery(qel);
+    synchronized (databaseLocker) {
+      rel = executeQuery(qel);
+      if (!isInquiry) {
+        snapshotDatabase();
+      }
+    }
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
-    
+
     if (logger.isDebugEnabled()) {
       logger.debug("dispatchQuery: response - source " + originMA +
-		   " target " + r.getOriginator() + 
+		   " target " + r.getOriginator() +
 		   " key " + key +
 		   " rel " + rel);
     }
     sendMessage(m);
+    rc++;
+    //System.err.println("YPServer RES="+rc);
   }
 
   protected void sendMessage(Message m) {
@@ -163,7 +331,6 @@ public class YPServer extends ComponentSupport {
   public static final String DB_PASS = "";
 
   Element executeQuery(Element qel) {
-
     try {
       if (logger.isDebugEnabled()) {
 	logger.debug("executeQuery: query -");
@@ -177,24 +344,78 @@ public class YPServer extends ComponentSupport {
 
       UDDIElement request = (UDDIElement) RequestFactory.getRequest(qel);
       UDDIService uService = ServiceFactory.getService(request.getClass().getName());
-      
-      uService.invoke(request).saveToXML(response);
 
-      if (logger.isDebugEnabled()) {
-	logger.debug("executeQuery: returned -");
-	describeElement(response);
+      try {
+        uService.invoke(request).saveToXML(response);
+
+        if (logger.isDebugEnabled()) {
+          logger.debug("executeQuery: returned -");
+          describeElement(response);
+        }
+        return (Element) response.getChildNodes().item(0);
+
+      } catch (JUDDIException je) {
+        Element fault = getFaultDoc(je);
+        if (logger.isWarnEnabled()) {
+          logger.warn("executeQuery: fault", je);
+        }
+        return fault;
       }
 
-      return (Element) response.getChildNodes().item(0);
-
-      } catch (Exception e) {
-        e.printStackTrace();
-        return null;
-    } 
+    } catch (Exception e) {
+      logger.error("Uncaught Exception ", e);
+      return null;
+    }
   }
-  
+
+  // from JUDDI/../JUDDIProxy
+  private Element getFaultDoc(JUDDIException e)
+  {
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    try {
+      Element faultElement = null;
+      Element rootElement = null;
+
+      // 2. build up a response element for UDDI4j to 'saveToXML()' into
+      DocumentBuilder builder = factory.newDocumentBuilder();
+      Document faultDoc = builder.newDocument();
+      rootElement = faultDoc.createElement("Fault");
+      faultDoc.appendChild(rootElement);
+
+      faultElement = faultDoc.createElement("faultcode");
+      faultElement.appendChild(faultDoc.createTextNode(e.getFaultCode()));
+      rootElement.appendChild(faultElement);
+
+      faultElement = faultDoc.createElement("faultstring");
+      if ( e.getFaultString() != null ) {
+        faultElement.appendChild(faultDoc.createTextNode(e.getFaultString()));
+      } else {
+        faultElement.appendChild(faultDoc.createTextNode(e.getMessage()));
+      }
+      rootElement.appendChild(faultElement);
+
+      faultElement = faultDoc.createElement("faultactor");
+      faultElement.appendChild(faultDoc.createTextNode(e.getFaultActor()));
+      rootElement.appendChild(faultElement);
+
+      DispositionReport dispRpt = e.getDispositionReport();
+      if (dispRpt != null) {
+        faultElement = faultDoc.createElement("detail");
+        dispRpt.saveToXML(faultElement);
+        rootElement.appendChild(faultElement);
+      }
+
+      return rootElement;
+    }
+    catch(Exception pcex) {
+      System.out.println(pcex.getMessage());
+      return null;
+    }
+  }
+
+
   static void describeElement(Node el) { describeElement(el,""); }
-  static void describeElement(Node el,String prefix) { 
+  static void describeElement(Node el,String prefix) {
     System.out.println(prefix+el);
     String pn = prefix+" ";
     if (el.hasChildNodes()) {
@@ -204,75 +425,74 @@ public class YPServer extends ComponentSupport {
     }
   }
 
-  private static void copyConfFiles() {
-    String installPath = System.getProperty("org.cougaar.install.path", "/tmp");
-    String workspacePath = System.getProperty("org.cougaar.workspace", installPath + "/workspace");
+  private void copyFiles(String dir) {
+    copyFiles(dir, "");
+  }
 
-    String juddiHomeDirPath = System.getProperty("juddi.homeDir", "");
-    if (juddiHomeDirPath.equals("")) {
-      juddiHomeDirPath = workspacePath + "/juddi";
-      System.setProperty("juddi.homeDir", juddiHomeDirPath);
-    }
-
+  private void copyFiles(String dir, String dbTag) {
     try {
-      File juddiHomeDir = new File(juddiHomeDirPath);
-      juddiHomeDir.mkdirs();
-      File hsqlDir = new File(juddiHomeDir, "hsql");
-      hsqlDir.mkdir();
+      File newDir = new File(juddiHomeDir, dir);
+      newDir.mkdir();
       
-      File confDir = new File(juddiHomeDir, "conf");
-      confDir.mkdir();
-      
-      File ypConfDir = new File(installPath + "/yp/data/juddi/conf");
-      
-      if (!ypConfDir.canRead()) {
-	logger.fatal("confConfDir: unable to read juddi configuration directory");
-	return;
+      // If dbTag is specified, create a subdirectory
+      if (!dbTag.equals("")) {
+	newDir = new File(newDir, dbTag);
+	newDir.mkdir();
       }
 
-      File []ypConfFiles = ypConfDir.listFiles();
-      for (int index = 0; index < ypConfFiles.length; index++) {
-	File ypConfFile = ypConfFiles[index];
-	if (ypConfFile.isFile()) {
-	  BufferedReader in = 
-	    new BufferedReader(new FileReader(ypConfFile));
-	
-	  BufferedWriter out = 
-	    new BufferedWriter(new FileWriter(new File(confDir, ypConfFile.getName())));
-	  String inLine;
-	  while ((inLine = in.readLine()) != null) {
-	    out.write(inLine);
-	    out.newLine();
-	  }
-	  
-	  in.close();
-	  out.close();
-	}
+
+      File ypTargetDir = new File(installPath + "/yp/data/juddi/" + dir);
+
+      if (!ypTargetDir.canRead()) {
+        logger.fatal("ypTargetDir: unable to read juddi " + dir + " directory");
+        return;
+      }
+
+      File []ypTargetFiles = ypTargetDir.listFiles();
+      for (int index = 0; index < ypTargetFiles.length; index++) {
+        File ypTargetFile = ypTargetFiles[index];
+        if (ypTargetFile.isFile()) {
+          BufferedReader in =
+            new BufferedReader(new FileReader(ypTargetFile));
+
+          BufferedWriter out =
+            new BufferedWriter(new FileWriter(new File(newDir, ypTargetFile.getName())));
+          String inLine;
+          while ((inLine = in.readLine()) != null) {
+            out.write(inLine);
+            out.newLine();
+          }
+
+          in.close();
+          out.close();
+        }
       }
     } catch (FileNotFoundException fnfe) {
       fnfe.printStackTrace();
-      logger.fatal("copyConfFiles: error copying configuration files.");
+      logger.fatal("copyFiles: error copying " + dir + " files.");
     } catch (IOException ioe) {
       ioe.printStackTrace();
-      logger.fatal("copyConfFiles: error copying configuration files.");
+      logger.fatal("copyFiles: error copying " + dir + " files.");
     }
   }
 
   void initDB() {
-    copyConfFiles();
-
-    Connection connection = null;
-
-    try {
-      connection = (new org.juddi.datastore.jdbc.HSQLDataStoreFactory()).getConnection();
-
-      CreateDatabase.dropDatabase(connection);
-      CreateDatabase.createDatabase(connection);
-
-    } catch (Exception e) {
-      logger.error("Exception creating UDDI tables in the HSQL database.");
-      e.printStackTrace();
+    copyFiles("conf");
+    synchronized (databaseLocker) {
+      if (databaseEnvelope!=null) { // rehydrate!
+        try {
+          databaseEnvelope.dumpPayload(dbDirectory);
+          return;               // done - all is well
+        } catch (IOException ioe) {
+          logger.error("Unrecoverable database snapshot "+dbDirectory, ioe);
+        }
+      }
+      
+      // no successful recovery, so we'll have to start over
+      copyFiles("hsql", originMA.toString());
+      snapshotDatabase();     // take a snapshot immediately
     }
+    //hack();
   }
 
   void initUDDI() {
@@ -287,8 +507,29 @@ public class YPServer extends ComponentSupport {
 
     //com.induslogic.uddi.server.util.GlobalProperties.loadProperties(props);
   }
+
+  /*
+  void hack() {
+    try {
+      File target = new File("/tmp/hsql/"+originMA.toString());
+      target.mkdirs();
+
+      DatabaseEnvelope.logger.info("Hack, writing binfile");
+      String binf = "/tmp/"+originMA+".bin";
+      ObjectOutputStream os = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream(binf)));
+      os.writeObject(getDatabaseEnvelope());
+      os.close();
+      DatabaseEnvelope.logger.info("Hack, reading binfile");
+      ObjectInputStream is = new ObjectInputStream(new BufferedInputStream(new FileInputStream(binf)));
+      DatabaseEnvelope de = (DatabaseEnvelope) is.readObject();
+      DatabaseEnvelope.logger.info("Hack, read "+de);
+      de.dumpPayload(target);
+      DatabaseEnvelope.logger.info("Dumped payload to "+target);      
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+  */
 }
-
-
 
 

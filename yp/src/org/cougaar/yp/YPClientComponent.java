@@ -30,15 +30,25 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+
 import org.cougaar.core.component.*;
 
-import org.cougaar.core.mts.*;
+
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
-
 import org.cougaar.core.blackboard.*;
+import org.cougaar.core.mts.Message;
+import org.cougaar.core.mts.MessageAddress;
+import org.cougaar.core.mts.MessageHandler;
 import org.cougaar.core.service.BlackboardService;
 import org.cougaar.core.service.ThreadService;
+import org.cougaar.core.service.community.Community;
+import org.cougaar.core.service.community.CommunityResponse;
+import org.cougaar.core.service.community.CommunityResponseListener;
+import org.cougaar.core.service.community.CommunityService;
+import org.cougaar.core.service.community.Entity;
 import org.cougaar.core.thread.*;
 import org.cougaar.util.*;
 
@@ -61,8 +71,10 @@ public class YPClientComponent extends ComponentSupport {
   private BlackboardService blackboard;;
   private YPLP lp;
   private ThreadService threadService;
+  private CommunityService communityService;
 
   public void setThreadService(ThreadService ts) { this.threadService = ts; }
+  public void setCommunityService(CommunityService cs) { this.communityService = cs; }
 
   public void initialize() {
     super.initialize();
@@ -73,11 +85,13 @@ public class YPClientComponent extends ComponentSupport {
     mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
     this.originMA = mss.getMessageAddress();
 
+    startServiceThread();
+
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
         public boolean handleMessage(Message message) {
           if (message instanceof YPResponseMessage) {
-            dispatchResponse((YPResponseMessage) message);
+            getServiceThread().addMessage(message);
             return true;
           }
           return false;
@@ -92,10 +106,28 @@ public class YPClientComponent extends ComponentSupport {
 
     ypsp = new YPServiceProvider();
     sb.addService(YPService.class, ypsp);
-
-    System.err.println("YPClientComponent/"+originMA+" initialized.");
-
+    //System.err.println("YPClientComponent/"+originMA+" initialized.");
   }
+
+  //
+  // Service thread for incoming (response) messages
+  //
+  private ServiceThread serviceThread = null;
+  private void startServiceThread() {
+    serviceThread = new ServiceThread(
+                                      new ServiceThread.Callback() {
+                                        public void dispatch(Message m) {
+                                          dispatchResponse((YPResponseMessage)m);
+                                        }},
+                                      logger,
+                                      "YPClient("+originMA+")");
+    serviceThread.start(threadService);
+  }
+
+  protected ServiceThread getServiceThread() { 
+    return serviceThread;
+  }
+
 
 
   //
@@ -119,20 +151,64 @@ public class YPClientComponent extends ComponentSupport {
   }
 
   private class YPServiceImpl implements YPService {
-    /** Get a UDDIProxy for YP Queryies **/
-    public YPProxy getYP(String context) {
-      return new YPProxyImpl(context, this, false);
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP(String ypAgent) {
+      return new YPProxyImpl(MessageAddress.getMessageAddress(ypAgent), this, 
+			     false);
     }
-    public YPProxy getAutoYP(String context) {
-      return new YPProxyImpl(context, this, true);
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP(MessageAddress ypAgent) {
+      return new YPProxyImpl(ypAgent, this, false);
     }
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP(Community community) {
+      return new YPProxyImpl(community, this, false, 
+			     YPProxy.SearchMode.HIERARCHICAL_COMMUNITY_SEARCH);
+    }
+
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP(Community community, int searchMode) {
+      return new YPProxyImpl(community, this, false, searchMode);
+    }
+
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP() {
+      return new YPProxyImpl(this, false,
+			     YPProxy.SearchMode.HIERARCHICAL_COMMUNITY_SEARCH);
+    }
+
+    /** Get a UDDIProxy for YP Queries **/
+    public YPProxy getYP(int searchMode) {
+      return new YPProxyImpl(this, false, searchMode);
+    }
+
+    public YPProxy getAutoYP(String ypAgent) {
+      return new YPProxyImpl(MessageAddress.getMessageAddress(ypAgent), this, 
+			     true);
+    }
+    public YPProxy getAutoYP(MessageAddress ypAgent) {
+      return new YPProxyImpl(ypAgent, this, 
+			     true);
+    }
+    public YPProxy getAutoYP(Community community) {
+      return new YPProxyImpl(community, this, 
+			     true, 
+			     YPProxy.SearchMode.HIERARCHICAL_COMMUNITY_SEARCH);
+    }
+
     public YPFuture submit(YPFuture r) {
       try {
-        YPClientComponent.this.submit(r);
+        YPClientComponent.this.submitFromService(r);
         return r;
       } catch (TransportException te) {
         throw new RuntimeException("submit nested exception", te);
       }
+    }
+
+    public void nextYPServerContext(final Object currentContext,
+				      final NextContextCallback callback) {
+      YPClientComponent.this.nextYPServerContext(currentContext,
+						 callback);
     }
   }
 
@@ -150,14 +226,15 @@ public class YPClientComponent extends ComponentSupport {
     Schedulable thread = null;
 
     private void signal() {
+      //System.err.println("YPLP ping");
       thread.start();
     }
 
     void start() {
-      thread = threadService.getThread(this, new Runnable() {
-          public void run() {
-              cycle();
-          }}, originMA.toString()+"YP");
+      thread = threadService.getThread(this,
+                                       new Runnable() {
+                                         public void run() { cycle(); }},
+                                       "YPLP("+originMA.toString()+")");
       init();
       signal();
     }
@@ -196,6 +273,7 @@ public class YPClientComponent extends ComponentSupport {
 
     void cycle() {
       //logger.warn("YPLP cycle");
+      //System.err.println("YPLP pong");
       try {
         blackboard.openTransaction();
         scan();
@@ -204,14 +282,17 @@ public class YPClientComponent extends ComponentSupport {
       }
     }      
 
+    // must be called within transaction - e.g. only from cycle or init
     void scan() {
+      //System.err.println("YPLP scan");
       for (Iterator it = futures.getAddedCollection().iterator(); it.hasNext(); ) {
         YPFuture fut = (YPFuture) it.next();
         try {
           //logger.warn("YPLP submitting "+fut);
-          YPClientComponent.this.submit(fut);
+          //System.err.println("YPLP submitting "+fut);
+          YPClientComponent.this.submitFromBlackboard(fut);
         } catch (TransportException te) {
-          logger.warn("YPFuture submit failed ("+fut+")", te);
+          logger.error("YPFuture submit failed ("+fut+")", te);
           blackboard.publishChange(fut);
         }
       }
@@ -219,12 +300,15 @@ public class YPClientComponent extends ComponentSupport {
 
     void kickFuture(YPFuture fut) {
       //logger.warn("YPLP kicking "+fut);
+      //System.err.println("YPLP kicking "+fut);
       try {
         blackboard.openTransaction();
+        //System.err.println("YPLP changing "+fut);
         blackboard.publishChange(fut);
       } finally {
         blackboard.closeTransaction();
       }
+      //System.err.println("YPLP change closed "+fut);
     }      
   }
 
@@ -237,34 +321,259 @@ public class YPClientComponent extends ComponentSupport {
     mss.sendMessage(m);
   }
 
+  private static final String YP_AGENT_FILTER = "(Role=YPServer)";
 
   /** Convert a context to a MessageAddress supporting the YP application **/
-  MessageAddress lookup(String context) {
-    // this should be a WP lookup like:
-    // return wp.lookupName(context, "YP");
-    return MessageAddress.getMessageAddress(context);
+  protected MessageAddress lookup(Object context) {
+    if (context instanceof MessageAddress) {
+      return ((MessageAddress) context);
+    } else if (context instanceof Community) {
+      Set ypAgents = 
+	((Community) context).search(YP_AGENT_FILTER, Community.AGENTS_ONLY);
+      if (logger.isDebugEnabled()) {
+	logger.debug("lookup: ypAgents " + ypAgents + " size = " + ypAgents.size());
+      }
+      
+      
+      for (Iterator iterator = ypAgents.iterator();
+	   iterator.hasNext();) {
+	MessageAddress ma = 
+	  MessageAddress.getMessageAddress(((Entity) (iterator.next())).getName());
+	if ((iterator.hasNext()) && (logger.isDebugEnabled())) {
+	  logger.debug(context + " Community has multiple YP servers. Using " +
+			 ma.toString());
+	}
+	return ma;
+      }
+
+      // If we got to here => no YPServer
+      if (logger.isDebugEnabled()) {
+	logger.debug(context + " Community does not have any YP servers.");
+      } 
+      throw new NoYPServerException(originMA + 
+				    ": unable to find YPServer community for " + 
+				    context);
+    } else {
+      throw new IllegalArgumentException("Unrecognized context type " + 
+					 context.getClass() + 
+					 ". Must be either MessageAddress or Community.");
+    }
   }
+
 
   /** Find the next context to search.
-   * @return null if we're out of contexts.
+   * @param currentContext current YP context
+   * @param callback callback.invoke(Object) called with the next context. 
+   * Next context will be null if there is no next context.
+   * @note callback.invoke may be called from within nextYPServerContext
    **/
-  String nextContext(YPFuture query, String currentContext) {
-    // no nesting right now, but Community should provide this information,
-    // or maybe it is built in.
-    //return communityService.getParentCommunity(context);
-    return null;
+  private void nextYPServerContext(final Object currentContext,
+				   final YPService.NextContextCallback callback) {
+    
+    if ((currentContext != null) &&
+        (!(currentContext instanceof Community))) {
+      // nowhere to go if not using a community context
+      callback.setNextContext(null);
+      return;
+    }
+
+    
+    CommunityResponseListener crl = new CommunityResponseListener() {
+      public void getResponse(CommunityResponse resp){
+	// Found the parents so reenter with the same context
+	nextYPServerContext(currentContext,
+			    callback);
+      }
+    };
+    
+    Collection parents;
+
+    if (currentContext == null) {
+      String [] parentNames = communityService.getParentCommunities(false);
+
+      if (parentNames != null) {
+	parents = Arrays.asList(parentNames);
+      } else {
+	parents = null;
+      }
+    } else {
+      if (logger.isDebugEnabled()) {
+	logger.debug("nextYPServerContext: attributes for " +
+		     currentContext + " " + 
+		     ((Community) currentContext).getAttributes());
+      }
+
+      parents =
+	communityService.listParentCommunities(((Community) currentContext).getName(), 
+					       crl);
+    }
+    
+    if (logger.isDebugEnabled()) {
+      logger.debug("nextYPServerContext: listParentCommunities(" + 
+		   currentContext + ") returned " +
+		   parents);
+    };
+
+    if (parents == null) { 
+      // waiting on community callback so let callbacks handle it
+      return;
+    } else if (parents.size() == 0) {
+      // No more parents
+      callback.setNextContext(null);
+      return;
+    }
+    
+    for (Iterator iterator = parents.iterator();
+	 iterator.hasNext();) {
+      String parentName = (String) iterator.next();
+      
+      crl = new CommunityResponseListener() {
+	public void getResponse(CommunityResponse resp){
+	  Community parent = (Community) resp.getContent();
+	  
+	  if (ypCommunity(parent)) {
+	    if (ypServer(parent)) {
+	      callback.setNextContext(parent);
+	    } else {
+	      nextYPServerContext(parent, callback);
+	    }
+	  } 
+	}
+      };
+      
+      Community parent = communityService.getCommunity(parentName, crl);
+
+      if (logger.isDebugEnabled()) {
+	logger.debug("nextYPServerContext: getCommunity(" + 
+		     parentName + ") returned " +
+		     parent);
+      };
+      
+      if (parent != null) {
+	if (ypCommunity(parent)) {
+	  if (ypServer(parent)) {
+	    callback.setNextContext(parent);
+	    return;
+	  } else {	
+	    if (logger.isDebugEnabled()) {
+	      logger.debug("nextYPServerContext for " + 
+			   currentContext + " recursing to  " + parent);
+	    }   
+	    nextYPServerContext(parent, callback);
+	    return;
+	  }
+	}
+      } else {
+	if (logger.isDebugEnabled()) {
+	  logger.debug("nextYPServerContext: waiting on community  for " + 
+		       parentName);
+	}
+      }
+    }
+
+    // BOZO - if there are errors in the nesting this may give weird results.
+    // Multiple ypCommunity parents with different YPServerAgents will mean 
+    // multiple setNextContext callbacks. 
+    // Will never get a callback if ypCommunity chain does not have a 
+    // YPServerAgent and ends with a non ypCommunity.
   }
 
-  /** return true IFF the element represents an actual answer (or positive failure) **/
+  protected void handleNextContext(YPFutureImpl query, Object currentContext,
+				   Object nextContext) {
+    if (nextContext != null) {
+      if (logger.isDebugEnabled()) {
+	logger.debug("Continuing resolver search, next context = " + 
+		     nextContext);
+      }
+      try {
+	track(query, nextContext);
+      } catch (TransportException ex) {
+	if (logger.isDebugEnabled()) {
+	  logger.debug("Failing resolver search, next context = " + 
+		       nextContext, ex);
+	}
+	// really shouldn't happen unless there is something broken with the context tree
+	query.setFinalContext(currentContext);
+	query.setException(ex);
+	kickLP(query);
+      } 
+    } else {
+      if (logger.isDebugEnabled()) {
+	logger.debug("Failed search with no result");
+      }
+      query.setFinalContext(currentContext); // last queried context
+      query.set(null);      // nobody answered
+      kickLP(query);
+    }
+  }
+
+  private static final String YP_COMMUNITY_FILTER = "(CommunityType=YPCommunity)";
+  
+  public static boolean ypCommunity(Community community) {
+    Attributes attributes = community.getAttributes();
+    Attribute communityType = attributes.get("CommunityType");
+
+
+    if (communityType == null) {
+      logger.error("ypCommunity: " + community + 
+		   " does not have a CommunityType attribute");
+      logger.error(community + " attributes " + attributes);
+      return false;
+    }
+
+    if (logger.isDebugEnabled()) {
+      logger.debug("ypCommunity: returning " + 
+		   communityType.contains("YPCommunity") +
+		   " for " + community);
+    }
+				 
+    return communityType.contains("YPCommunity");
+  }
+
+  public static boolean ypServer(Community community) {
+    if (ypCommunity(community)) {
+      Attributes attributes = community.getAttributes();
+      Attribute ypServerAgent = attributes.get("YPServerAgent");
+
+      if (ypServerAgent == null) {
+	if (logger.isDebugEnabled()) {
+	  logger.debug("ypServer: returning false for " + 
+		       community);
+	}
+
+	return false;
+      }
+
+      if (logger.isDebugEnabled()) {
+	logger.debug("ypServer: returning " + 
+		     (ypServerAgent.size() > 0) +
+		     " for " + community);
+      }
+
+      return ypServerAgent.size() > 0;
+    } 
+    return false;
+  }
+
+
+
+
+  /** Return true IFF the element represents an actual answer (or positive failure) **/
   boolean isResponseComplete(YPFuture r, Element e) {
-    return (e != null);
+    return ((r.getSearchMode() != 
+	     YPProxy.SearchMode.HIERARCHICAL_COMMUNITY_SEARCH) ||
+	    (e != null));
   }
 
   /** (maybe) Tell the appropriate LogicProvider that the query is complete
    * and any subscribers need to be told to wake up
    **/
   void kickLP(YPFuture r) {
-    lp.kickFuture(r);
+    //System.err.println("YPCLient KICK "+r);
+    if (((YPFutureImpl) r).isFromBlackboard()) {
+      // only invoke the subscription kicker if it was submitted that way.
+      lp.kickFuture(r);
+    }
   }
 
   /** Key counter.  Access locked by selects.  **/
@@ -272,15 +581,60 @@ public class YPClientComponent extends ComponentSupport {
   /** Keep track of outstanding requests.  Also used as sync lock for counter and selects itself. **/
   private final HashMap selects = new HashMap(11); // assume not too many at a time
     
+  void submitFromBlackboard(YPFuture r) throws TransportException {
+    ((YPFutureImpl) r).setIsFromBlackboard(true);
+    submit(r);
+  }
+  void submitFromService(YPFuture r) throws TransportException {
+    submit(r);
+  }
+
   /** Submit a request.
    */
-  void submit(YPFuture r) throws TransportException {
+  private void submit(final YPFuture r) throws TransportException {
     ((YPFutureImpl) r).submitted();
-    track(r, r.getInitialContext());
+
+    
+    if (!(r.getInitialContext() == null)) {
+      // Assume we know where to start
+      track(r, r.getInitialContext());
+    } else {
+      YPService.NextContextCallback callback = 
+	new YPService.NextContextCallback() {
+	public void setNextContext(Object context){
+	  if (context != null) {
+	    try {
+	      // Found the ypserver community so go on
+	      if (logger.isDebugEnabled()) {
+		logger.debug("YPService.NextClientCallback.setNextContext- query - " + r +
+			     " context - " + context);
+	      }
+	      track(r, context);
+	    } catch (TransportException te) {
+	      logger.error("Unable to submit YP interaction to " + context, 
+			   te);
+	      ((YPFutureImpl) r).setFinalContext(r.getInitialContext());
+	      ((YPFutureImpl) r).setException(te);
+	      kickLP(r);
+	    } 
+	  } else {
+	    NoYPServerException nypse = 
+	      new NoYPServerException(originMA + 
+				      ": unable to find YPServer community");
+	    ((YPFutureImpl) r).setFinalContext(r.getInitialContext());
+	    ((YPFutureImpl) r).setException(nypse);
+	    kickLP(r);
+	  }
+	}
+      };
+
+      nextYPServerContext(r.getInitialContext(), 
+			  callback);
+    }
   }
 
   /** Track a single message, implicitly watching the whole resolver chain **/
-  Tracker track(YPFuture r, String context) throws TransportException {
+  void track(YPFuture r, Object context) throws TransportException {
     Tracker t;
 
     synchronized (selects) {
@@ -290,8 +644,9 @@ public class YPClientComponent extends ComponentSupport {
     }
     
     t.send();
-    return t;
   }
+
+  private int rc = 0;
 
   /** dispatch the response to the appropriate listener **/
   private void dispatchResponse(YPResponseMessage r) {
@@ -319,25 +674,43 @@ public class YPClientComponent extends ComponentSupport {
 
       tracker.receiveResponse(el);
     }
+    rc++;
+    //System.err.println("YPClient RES="+rc);
+    
   }
+
 
   /** 
    *
    **/
   class Tracker {
     private final YPFutureImpl query;
-    private final String context;
+    private final Object context;
     private final Object key;
 
-    Tracker(YPFuture r, String context, Object key) {
-      this.query = (YPFutureImpl) r; // shouldn't be possible to get to this point, but you never know
+    Tracker(YPFuture r, Object context, Object key) {
+      this.query = (YPFutureImpl) r; // always an impl
       this.context = context;
       this.key = key;
     }
     
     void send() throws TransportException {
       try {
+        if (logger.isDebugEnabled()) {
+          logger.debug("Tracker.send: sending YPQueryMessage - origin " + originMA +
+                       " context " + context);
+	  if (context == null) {
+	    RuntimeException re = 
+	      new RuntimeException("Null context in Tracker.send.");
+	    re.printStackTrace();
+	  }
+        }
         MessageAddress ma = lookup(context);
+
+	if (logger.isDebugEnabled()) {
+	  logger.debug(originMA + " lookup(" + context +
+		       " return ma ");
+	}
         Element el = query.getElement();
         boolean iqp = query.isInquiry();
         YPQueryMessage m = new YPQueryMessage(originMA, ma, el, iqp, key);
@@ -349,11 +722,16 @@ public class YPClientComponent extends ComponentSupport {
         }
         sendMessage(m);
       } catch (RuntimeException re) {
+	if (logger.isDebugEnabled()) {
+	  re.printStackTrace();
+	}
         throw new TransportException(re);
       }
     }
 
     void receiveResponse(Element result) {
+      //System.err.println("YPCLient GOT");
+
       if (isResponseComplete(query, result)) {
         if (logger.isDebugEnabled()) {
           logger.debug("Tracker "+key+" waking with "+result);
@@ -366,32 +744,19 @@ public class YPClientComponent extends ComponentSupport {
         if (logger.isDebugEnabled()) {
           logger.debug("Tracker "+key+" continuing resolver search");
         }
+
+	YPService.NextContextCallback callback = 
+	  new YPService.NextContextCallback() {
+	  public void setNextContext(Object nextContext) {
+	    handleNextContext(query, context, nextContext);
+	  }
+	};
+
         // keep going
-        String nc = nextContext(query, context);
-        if (nc != null) {
-          if (logger.isDebugEnabled()) {
-            logger.debug("Tracker "+key+" continuing resolver search, next context = "+nc);
-          }
-          try {
-            track(query, nc);
-          } catch (TransportException ex) {
-            if (logger.isDebugEnabled()) {
-              logger.debug("Tracker "+key+" failing resolver search, next context = "+nc, ex);
-            }
-            // really shouldn't happen unless there is something broken with the context tree
-            query.setFinalContext(context);
-            query.setException(ex);
-            kickLP(query);
-          } 
-        } else {
-          if (logger.isDebugEnabled()) {
-            logger.debug("Tracker "+key+" failed search with no result");
-          }
-          query.setFinalContext(context); // last queried context
-          query.set(null);      // nobody answered
-          kickLP(query);
-        }
+        nextYPServerContext(context, callback);
       }
     }
+
   }
 }
+

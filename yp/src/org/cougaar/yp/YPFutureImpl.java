@@ -37,6 +37,7 @@ import java.net.*;
 import java.util.*;
 
 import org.cougaar.core.component.Service;
+import org.cougaar.core.thread.SchedulableStatus;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -50,27 +51,33 @@ import org.w3c.dom.Element;
 import org.w3c.dom.DOMException;
 
 import org.cougaar.util.log.*;
+import org.cougaar.core.mts.MessageAddress;
 import org.cougaar.core.persist.Persistable;
+import org.cougaar.core.service.community.Community;
 
 
 final class YPFutureImpl implements YPFuture, Persistable {
   private static final Logger logger = Logging.getLogger(YPProxy.class); // reuse proxy's logger
 
-  private String initialContext;
+  private Object initialContext;
   private Element element;
   private boolean queryP;
   private boolean ready = false;
   private Object result = null;
   private Callback callback = null;
-  private String finalContext = null;
+  private Object finalContext = null;
   private Class resultClass;
   private boolean isSubmitted = false;
+  private boolean blackboardp = false;
+  private int  searchMode;
 
-  YPFutureImpl(String context, Element e, boolean qp, Class resultClass) {
+  YPFutureImpl(Object context, Element e, boolean qp, Class resultClass, 
+	       int searchMode) {
     this.initialContext = context;
     this.element = e;
     this.queryP = qp;
     this.resultClass = resultClass;
+    this.searchMode = searchMode;
   }
 
   public Element getElement() {
@@ -79,28 +86,40 @@ final class YPFutureImpl implements YPFuture, Persistable {
   public boolean isInquiry() {
     return queryP;
   }
-  public String getInitialContext() {
+  public Object getInitialContext() {
     return initialContext;
   }
 
 
+  public int getSearchMode() {
+    return searchMode;
+  }
+
   public synchronized boolean isReady() { return ready; }
     
-  public Object get() {
+  public Object get() throws UDDIException {
     return get(0L);
   }
-  public synchronized Object get(long msecs) {
+  public synchronized Object get(final long msecs) throws UDDIException {
     if (!ready) {
-      try {
-        this.wait(msecs);
-      } catch (InterruptedException ie) {
-        logger.warn("Saw InterruptedException while waiting for YPReponse", ie);
-      }
+      SchedulableStatus.withWait("YP Lookup",
+                                 new Runnable() { public void run() {
+                                   try {
+                                     this.wait(msecs);
+                                   } catch (InterruptedException ie) {
+                                     logger.warn("Saw InterruptedException while waiting for YPReponse", ie);
+                                   }
+                                 }
+                                 });
     }
-
     if (ready) {
       if (result instanceof Throwable) {
-        throw new RuntimeException("YPFuture exception", (Throwable) result);
+	if (result instanceof RuntimeException) {
+	  // Leave original exception so that clients can catch explicitly.
+	  throw (RuntimeException) result;
+	} else {
+	  throw new RuntimeException("YPFuture exception", (Throwable) result);
+	}
       } else {
         return convert(result); // convert to UDDI response object
       }
@@ -109,15 +128,44 @@ final class YPFutureImpl implements YPFuture, Persistable {
     }
   }
 
-  public synchronized void setCallback(Callback callable) {
-    if (callback != null && callable != null) throw new IllegalArgumentException("Already had a callback");
-    callback = callable;
+  private static class ResponseCallbackAdapter implements Callback {
+    private final ResponseCallback rc;
+    ResponseCallbackAdapter(ResponseCallback c) { this.rc = c; }
+    public final void ready(YPFuture response) {
+      try {
+	Object r = response.get();
+	try {
+	  if (logger.isDebugEnabled()) {
+	    logger.debug("ResponseCallbackAdapter.read() calling " + rc);
+	  }
+	  rc.invoke(r);
+	} catch (RuntimeException ix) {
+	  logger.error("Invocation of YPFuture ResponseCallback resulted in Exception", ix);
+	}
+      } catch (Exception e) {
+	rc.handle(e);
+      }
+    }
+  }
+    
+  public synchronized void setCallback(YPComplete notifier) {
+    Callback c;
+    if (notifier instanceof ResponseCallback) {
+      c = new ResponseCallbackAdapter((ResponseCallback) notifier);
+    } else if (notifier instanceof Callback) {
+      c = (Callback) notifier;
+    } else {
+      throw new IllegalArgumentException("Only Callback and ResponseCallback instances are allowed");
+    }
+
+    if (callback != null) throw new IllegalArgumentException("Already had a callback");
+    callback = c;
     if (ready) {
-      callable.ready(this);
+      callback.ready(this);
     }
   }
 
-  public String getFinalContext() {
+  public Object getFinalContext() {
     return finalContext;
   }
 
@@ -139,7 +187,11 @@ final class YPFutureImpl implements YPFuture, Persistable {
     set(t);
   }
 
-  void setFinalContext(String fc) {
+
+  void setFinalContext(Object fc) {
+    if (logger.isDebugEnabled()) {
+      logger.debug("setFinalContext(): fc " + fc + " callback " + callback);
+    }
     finalContext = fc;
   }
   
@@ -150,13 +202,35 @@ final class YPFutureImpl implements YPFuture, Persistable {
     isSubmitted = true;
   }
 
+  synchronized void setIsFromBlackboard(boolean v) {
+    blackboardp = v;
+  }
+
+  synchronized boolean isFromBlackboard() {
+    return blackboardp;
+  }
+
   private static final Class[] cargs = new Class[] { Element.class };
 
   /** Convert from an XML Element to a UDDI response object **/
-  private Object convert(Object el) {
+  private Object convert(Object el) throws UDDIException {
     if (el == null) {
       return null;
     } else {
+      if (el instanceof Element) {
+        Element ell = (Element) el;
+	if (logger.isDebugEnabled()) {
+	  logger.debug("convert: " + ell);
+	}
+        if (UDDIException.isValidElement(ell)) {
+	  if (logger.isDebugEnabled()) {
+	    RuntimeException re = new RuntimeException();
+	    logger.debug("Throwing UDDI exception " + ell, re);
+	  }
+          throw new UDDIException(ell, true);
+        }
+      }
+
       if (resultClass == null) { // no class conversion
         return el;
       } else {                //  otherwise, construct from the element
@@ -173,3 +247,10 @@ final class YPFutureImpl implements YPFuture, Persistable {
   // implement Persistable
   public boolean isPersistable() { return false; }
 }
+
+
+
+
+
+
+

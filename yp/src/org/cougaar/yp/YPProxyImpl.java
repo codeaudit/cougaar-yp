@@ -36,7 +36,10 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
+
 import org.cougaar.core.component.Service;
+import org.cougaar.core.mts.MessageAddress;
+import org.cougaar.core.service.community.Community;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -61,14 +64,49 @@ import org.cougaar.util.log.*;
 
 class YPProxyImpl implements YPProxy {
   private static final Logger logger = Logging.getLogger(YPProxy.class);
-  private final String context;
+  private final Object context;
   private final YPService yps;
   private final boolean autosubmit;
+  private final int searchMode;
 
-  YPProxyImpl(String initialContext, YPService yps, boolean autosubmit) {
-    this.context = initialContext;
+  YPProxyImpl(MessageAddress ypAgent, YPService yps, boolean autosubmit) {
+    this.context = ypAgent;
     this.yps = yps;
     this.autosubmit = autosubmit;
+    this.searchMode = YPProxy.SearchMode.NO_COMMUNITY_SEARCH;
+  }
+
+  YPProxyImpl(Community community, YPService yps, boolean autosubmit, 
+	      int searchMode) {
+    this.context = community;
+    this.yps = yps;
+    this.autosubmit = autosubmit;
+
+    if (YPProxy.SearchMode.validCommunitySearchMode(searchMode)) {
+      this.searchMode = searchMode;
+    } else {
+      throw new IllegalArgumentException("Invalid search mode specified - " + 
+					 searchMode + 
+					 " - must be one of YPProxy.SearchMode ");
+    }
+  }
+
+  YPProxyImpl(YPService yps, boolean autosubmit, int searchMode) {
+    this.context = null;
+    this.yps = yps;
+    this.autosubmit = autosubmit;
+
+    if (YPProxy.SearchMode.validCommunitySearchMode(searchMode)) {
+      this.searchMode = searchMode;
+    } else {
+      throw new IllegalArgumentException("Invalid search mode specified - " + 
+					 searchMode + 
+					 " - must be one of YPProxy.SearchMode ");
+    }
+  }
+
+  public int getSearchMode() {
+    return searchMode;
   }
 
   /**
@@ -510,7 +548,7 @@ class YPProxyImpl implements YPProxy {
   }
 
   private YPFuture pkg(Element el, boolean qp, Class rc) {
-    YPFuture fut = new YPFutureImpl(context, el, qp, rc);
+    YPFuture fut = new YPFutureImpl(context, el, qp, rc, getSearchMode());
     if (autosubmit) {
       return yps.submit(fut);
     } else {

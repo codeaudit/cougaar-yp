@@ -110,6 +110,41 @@ import org.uddi4j.util.KeyedReference;
  **/
 
 public interface YPProxy {
+  public static final String DEFAULT_UDDI_USERNAME = "cougaar";
+  public static final String DEFAULT_UDDI_PASSWORD = "cougaarPass";
+
+  public class SearchMode {
+    public static final int NO_COMMUNITY_SEARCH = 0;
+    public static final int HIERARCHICAL_COMMUNITY_SEARCH = 1;
+    public static final int SINGLE_COMMUNITY_SEARCH = 2;
+
+    /* Change to highest value if more added */
+    public static final int MAX = SINGLE_COMMUNITY_SEARCH;
+
+    static public boolean validSearchMode(int searchMode) {
+      return (searchMode >= 0) && (searchMode <= SearchMode.MAX);
+    }
+    
+    static public boolean validCommunitySearchMode(int searchMode) {
+      return ((searchMode == HIERARCHICAL_COMMUNITY_SEARCH) ||
+	      (searchMode == SINGLE_COMMUNITY_SEARCH));
+    }
+  }
+
+  /**
+   * Describes the search mode used to find YPServers - 
+   * NO_SEARCH - YPProxy does not use the community structure to 
+   * find the YPServer.
+   * HIERARCHICAL_COMMUNITY_SEARCH - Query progresses
+   * up the community structure of YP servers until either a match is found or
+   * search has reached the topmost community. 
+   * SINGLE_COMMUNITY_SEARCH - Query is applied only to the
+   * YP server in the specified YP community context.
+   */
+  public int getSearchMode();
+
+
+
   /**
    * The find_binding method returns a bindingDetail message that contains
    * a bindingTemplates structure with zero or more bindingTemplate structures
@@ -969,3 +1004,7 @@ class SamplePlugin {
   }
 }
 */
+
+
+
+
