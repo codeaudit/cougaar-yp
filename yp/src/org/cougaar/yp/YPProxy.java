@@ -284,7 +284,7 @@ public interface YPProxy {
    * bindingTemplate information location information for the purpose of
    * invoking a registered business API.
    *
-   * @param bindingKey Vector of uuid_key strings that represent specific instances
+   * @param bindingKeyStrings Vector of uuid_key strings that represent specific instances
    *                   of known bindingTemplate data.
    * @return This function returns a YPFuture wrapping a bindingDetail message on successful match of one
    *         or more bindingKey values.  If multiple bindingKey values were passed, the

@@ -102,7 +102,7 @@ public interface YPService extends Service {
    * mechanisms, as it is easier to write broken code using this mechanism.
    * @deprecated
    */
-  YPProxy getAutoYP(String context);
+  YPProxy getAutoYP(String ypAgent);
 
   /** List #getYP(String), except submits the request before returning the 
    * YPFuture value.  This is a convenient mechanism if you do not have access
