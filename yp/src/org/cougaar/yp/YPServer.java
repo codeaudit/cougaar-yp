@@ -500,7 +500,7 @@ public class YPServer extends ComponentSupport {
       }
       
       // no successful recovery, so we'll have to start over
-      String hsqlDir = org.juddi.datastore.jdbc.HSQLDataStoreFactory.getURL();
+      org.juddi.datastore.jdbc.HSQLDataStoreFactory.getURL();
       copyFiles("hsql", dbDirectory.getPath());
       snapshotDatabase();     // take a snapshot immediately
     }
