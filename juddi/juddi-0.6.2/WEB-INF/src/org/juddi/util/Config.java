@@ -92,6 +92,24 @@ public class Config
   /**
    *
    */
+  public static boolean getInMemoryDatabase()
+  {
+    Boolean b = getPropertyBoolean("org.juddi.inMemoryDatabase");
+    return (b == null) ? false : b.booleanValue();
+  }
+
+  /**
+   *
+   */
+  public static boolean getOneServerPerThread()
+  {
+    Boolean b = getPropertyBoolean("org.juddi.oneServerPerThread");
+    return (b == null) ? false : b.booleanValue();
+  }
+
+  /**
+   *
+   */
   public static String getOperatorURI()
   {
     return getProperty("org.juddi.operatorName");

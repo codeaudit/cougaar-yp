@@ -36,13 +36,29 @@ public class HSQLDataStoreFactory extends DataStoreFactory
 
   private static final String jdbcDriver    = "org.hsqldb.jdbcDriver";
   private static final String jdbcURL       = "jdbc:hsqldb:" + Config.getHomeDir() + "/hsql/juddidb";
+  private static final String inMemoryURL   = "jdbc:hsqldb:.";
   private static final String jdbcUserID    = "sa";
   private static final String jdbcPassword  = "";
+  private static final boolean perThread = Config.getOneServerPerThread();
 
+  private static final boolean inMemory = Config.getInMemoryDatabase();
   private static int dbCount = 1;
   private static ThreadLocal dbNum = new ThreadLocal() {
     protected synchronized Object initialValue() {
       return new Integer (dbCount++);
+    }
+  };
+
+  private static ThreadLocal cachedConnections = new ThreadLocal() {
+    protected synchronized Object initialValue() {
+      try {
+        return DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
+      }
+      catch(SQLException sqlex) {
+        log.error("Exception occured while attempting to create a " +
+          "new JDBC connection: "+sqlex.getMessage());
+      }
+      return null;
     }
   };
 
@@ -64,9 +80,12 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   /**
    * using this function will allow different URLs for different threads
    */
-  private String getURL() {
+  private static String getURL() {
+    String url = inMemory ? inMemoryURL : jdbcURL;
+    if (! perThread)
+      return url;
     int num = ((Integer) dbNum.get()).intValue();
-    return (num == 1) ? jdbcURL : (jdbcURL + num);
+    return (num == 1) ? url : (url + num);
   }
 
   /**
@@ -74,37 +93,13 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    */
   public DataStore aquireDataStore()
   {
-    Connection conn = null;
-
-    // create a new JDBC connection
-    try {
-      conn = DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
-    }
-    catch(SQLException sqlex) {
-      log.error("Exception occured while attempting to create a " +
-        "new JDBC connection: "+sqlex.getMessage());
-    }
-
-    // create a JDBCDataStore with the connection.
-    return new JDBCDataStore(conn);
+    return new JDBCDataStore((Connection) cachedConnections.get());
   }
 
   /**
    *
    */
-  public void releaseDataStore(DataStore datastore)
-  {
-    // get the connection from of the datastore.
-    Connection conn = ((JDBCDataStore)datastore).getConnection();
-
-    // close a JDBC connection
-    try {
-      conn.close();
-    }
-    catch(SQLException sqlex) {
-      log.error("Exception occured while attempting to close a " +
-        "JDBC connection: "+sqlex.getMessage());
-    }
+  public void releaseDataStore(DataStore datastore) {
   }
 
   /**
@@ -112,18 +107,6 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    */
   public Connection getConnection()
   {
-    Connection conn = null;
-
-    // create a new JDBC connection
-    try {
-      conn = DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
-    }
-    catch(SQLException sqlex) {
-      log.error("Exception occured while attempting to create a " +
-        "new JDBC connection: "+sqlex.getMessage());
-    }
-
-    // create a JDBCDataStore with the connection.
-    return conn;
+    return (Connection) cachedConnections.get();
   }
 }
