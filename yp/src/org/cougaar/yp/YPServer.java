@@ -214,21 +214,29 @@ public class YPServer extends ComponentSupport {
       
       File ypConfDir = new File(installPath + "/yp/data/juddi/conf");
       
+      if (!ypConfDir.canRead()) {
+	logger.fatal("confConfDir: unable to read juddi configuration directory");
+	return;
+      }
+
       File []ypConfFiles = ypConfDir.listFiles();
       for (int index = 0; index < ypConfFiles.length; index++) {
-	BufferedReader in = 
-	  new BufferedReader(new FileReader(ypConfFiles[index]));
+	File ypConfFile = ypConfFiles[index];
+	if (ypConfFile.isFile()) {
+	  BufferedReader in = 
+	    new BufferedReader(new FileReader(ypConfFile));
 	
-	BufferedWriter out = 
-	  new BufferedWriter(new FileWriter(new File(confDir, ypConfFiles[index].getName())));
-	String inLine;
-	while ((inLine = in.readLine()) != null) {
-	  out.write(inLine);
-	  out.newLine();
+	  BufferedWriter out = 
+	    new BufferedWriter(new FileWriter(new File(confDir, ypConfFile.getName())));
+	  String inLine;
+	  while ((inLine = in.readLine()) != null) {
+	    out.write(inLine);
+	    out.newLine();
+	  }
+	  
+	  in.close();
+	  out.close();
 	}
-	
-	in.close();
-	out.close();
       }
     } catch (FileNotFoundException fnfe) {
       fnfe.printStackTrace();
