@@ -20,7 +20,7 @@ public class CreateDatabase
   /**
    *
    */
-  private static void dropDatabase(java.sql.Connection connection)
+  public static void dropDatabase(java.sql.Connection connection)
     throws Exception
   {
     if (connection == null)
@@ -59,7 +59,7 @@ public class CreateDatabase
   /**
    *
    */
-  private static void createDatabase(java.sql.Connection connection)
+  public static void createDatabase(java.sql.Connection connection)
     throws Exception
   {
     if (connection == null)

@@ -84,7 +84,7 @@ public class RequestFactory
   public static synchronized Object getRequest(Element requestDOM)
     throws JUDDIException
   {
-    String requestName = requestDOM.getLocalName();
+    String requestName = requestDOM.getTagName();
     if ((requestName == null) || ((requestName.length() == 0)))
     {
       String msg = "A null or zero-length requestName was passed to PublishRequestFactory.getRequest: "+requestName;

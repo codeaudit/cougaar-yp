@@ -39,6 +39,13 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   private static final String jdbcUserID    = "sa";
   private static final String jdbcPassword  = "";
 
+  private static int dbCount = 1;
+  private static ThreadLocal dbNum = new ThreadLocal() {
+    protected synchronized Object initialValue() {
+      return new Integer (dbCount++);
+    }
+  };
+
   /**
    *
    */
@@ -55,6 +62,14 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   }
 
   /**
+   * using this function will allow different URLs for different threads
+   */
+  private String getURL() {
+    int num = ((Integer) dbNum.get()).intValue();
+    return (num == 1) ? jdbcURL : (jdbcURL + num);
+  }
+
+  /**
    *
    */
   public DataStore aquireDataStore()
@@ -63,7 +78,7 @@ public class HSQLDataStoreFactory extends DataStoreFactory
 
     // create a new JDBC connection
     try {
-      conn = DriverManager.getConnection(jdbcURL,jdbcUserID,jdbcPassword);
+      conn = DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
     }
     catch(SQLException sqlex) {
       log.error("Exception occured while attempting to create a " +
@@ -95,13 +110,13 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   /**
    *
    */
-  protected Connection getConnection()
+  public Connection getConnection()
   {
     Connection conn = null;
 
     // create a new JDBC connection
     try {
-      conn = DriverManager.getConnection(jdbcURL,jdbcUserID,jdbcPassword);
+      conn = DriverManager.getConnection(getURL(),jdbcUserID,jdbcPassword);
     }
     catch(SQLException sqlex) {
       log.error("Exception occured while attempting to create a " +
