@@ -38,26 +38,59 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class YPTest {
-  public static void main(String[] arg) {
-    YPTest ypt = new YPTest();
-    ypt.execute();
-    System.exit(0);
+import org.cougaar.core.component.*;
+import org.cougaar.core.mts.*;
+import org.cougaar.util.log.*;
+
+// the next three are solely for the standalone test
+import org.uddi4j.transport.*;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+
+
+/** This is a trivial YP service tester.
+ * It may be run in two ways:  Either as a standalone class (e.g. via main()) or
+ * as a plugin/component by adding the appropriate line in 
+ * a society config file, e.g. "plugin = org.cougaar.yp.YPTest(A)" where "A" is the
+ * name of an agent which has a YPServer loaded and the current agent has
+ * YPClientComponent loaded).
+ */
+
+public class YPTest extends ComponentSupport {
+  private static final Logger logger = Logging.getLogger(YPServer.class);
+
+  private String arg = "Unknown";
+
+  public void setParameter(Object p) {
+    if (p != null) {
+      if (p instanceof Collection) {
+        Iterator it = ((Collection)p).iterator();
+        Object ma = it.next();
+        if (ma instanceof String) {
+          arg = (String) ma;
+        } else {
+          System.err.println("First parameter not a string! "+ma);
+        }
+      } else {
+        System.err.println("Parameter not a Collection! "+p);
+      }
+    } else {
+      System.err.println("YPTest requires a parameter which names a YPServer agent!");
+    }
   }
 
-  private void execute() {
-    // normally, we'd do something like:
-    //YPService yps = (YPService) myservicebroker.getService(this, YPService.class);
-    // but so that we can test this in isolation:
-    // hack to compile
-    YPService yps = null;  // new FakeYPServer();
+  public void initialize() {
+    super.initialize();
+    System.err.println("YPTest running.");
 
-    UDDIProxy proxy = yps.getYP(null); // default the context
-    // we'd usually use:
-    // MessageAddress serverName = "MyCommunity";
-    // UDDIProxy proxy = yps.getYP(serverName);
+    YPService yps = (YPService) getServiceBroker().getService(this, YPService.class, null);
+
+    String context = arg;
+
+    UDDIProxy proxy = yps.getYP(context);
 
     test(proxy);
+    System.err.println("YPTest done.");
   }
 
   String user = "cougaar";
@@ -183,6 +216,80 @@ public class YPTest {
       // Catch any other exception that may occur
     } catch (Exception ex) {
       ex.printStackTrace();
+    }
+  }
+
+
+  /** this is a standalone test which doesn't require a
+   * cougaar society.  It does not test the Messaging infrastructure
+   * but executes the same actual UDDI operations as the society 
+   * test does.
+   **/
+
+  public static void main(String[] arg) {
+    YPServer yp = new YPServer();
+    yp.initDB();
+    yp.initUDDI();
+    StandaloneYPTransport transport = new StandaloneYPTransport(yp);
+
+    UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
+
+    try {
+      URL iurl = new URL("http","zoop", "frotz");
+      URL purl = new URL("https","zart", "glorp");
+      proxy.setInquiryURL(iurl);
+      proxy.setPublishURL(purl);
+    } catch (MalformedURLException e) { 
+      // cannot happen
+    }
+
+
+    new YPTest().test(proxy);
+  }
+  
+  private static class StandaloneYPTransport extends TransportBase {
+    private YPServer yp;
+    StandaloneYPTransport(YPServer yp) {
+      this.yp = yp;
+    }
+    /** Send the DOM element specified to the URL as interpreted by the MTS **/
+    public Element send(Element el, java.net.URL url) throws TransportException {
+      logger.debug("Transported query "+el);
+      describeElement(el);
+      Element resp = yp.executeQuery(serialize(el));
+      logger.debug("Sending Response "+resp);
+      describeElement(resp);
+      return serialize(resp);
+    }
+    private Element serialize(Element el) {
+      try {
+      ByteArrayOutputStream outbytes = new ByteArrayOutputStream();
+      ObjectOutputStream oos = new ObjectOutputStream(outbytes);
+      oos.writeObject(el);
+      oos.close();
+      ByteArrayInputStream inbytes = new ByteArrayInputStream(outbytes.toByteArray());
+      ObjectInputStream ois = new ObjectInputStream(inbytes);
+      Element rv = (Element) ois.readObject();
+      ois.close();
+      return rv;
+      } catch (Exception e) {
+        e.printStackTrace();
+        return null;
+      }
+    }
+  }
+
+
+
+  // hack XML printer for debugging
+  static void describeElement(Node el) { describeElement(el,""); }
+  static void describeElement(Node el,String prefix) { 
+    System.out.println(prefix+el);
+    String pn = prefix+" ";
+    if (el.hasChildNodes()) {
+      for (Node c = el.getFirstChild(); c!= null; c = c.getNextSibling()) {
+        describeElement(c, pn);
+      }
     }
   }
 
