@@ -133,4 +133,28 @@ public class HSQLDataStoreFactory extends DataStoreFactory
   {
     return (Connection) cachedConnections.get(dbTag.get());
   }
+  /**
+   * Get cached connection associated with ThreadLocal dbTag.
+   * If process is using more than 1 database,  must set dbTag before each 
+   * interaction. Connections are not re-entrant so only one thread can be 
+   * using a connection at a time.
+   *
+   */
+  public static boolean closeConnection()
+  {
+    Connection connection = (Connection) cachedConnections.get(dbTag.get());
+    
+    if (connection != null) {
+      try {
+	connection.close();
+	cachedConnections.remove(dbTag.get());
+      } catch(SQLException sqlex) {
+        log.error("Exception occured while attempting to close a " +
+		  "JDBC connection: for " + dbTag.get() + sqlex.getMessage());
+	return false;
+      }
+    }
+    
+    return true;
+  }
 }
