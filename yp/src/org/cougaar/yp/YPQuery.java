@@ -34,10 +34,10 @@ import org.cougaar.core.component.Service;
 /** A YPQuery is an implementation of the JAXR BusinessQueryManager.
  * Since YP Queries are generally just packaged up for sending across the wire
  * rather than executed immediately (and to simplify Binder design),
- * most of the methods will actually just return null;
+ * all of the methods JAXR methods actually just return null;
  * @note It is undefined to call more than one query method.
  **/
-public interface YPQuery extends BusinessQueryManager {
+public interface YPQuery extends BusinessQueryManager, Serializable {
   /** addProperties allows the querier to add arbitrary properties to the 
    * query to be interpreted by the responding server.  For example,
    * a JAXR server with a UDDI backend will probably need various types of connection
@@ -51,4 +51,16 @@ public interface YPQuery extends BusinessQueryManager {
    * @note It is undefined to modify the returned value.
    */
   Properties getProperties();
+
+  /** Execute a query against a real BusinessQueryManager.
+   * This method always returns a valid YPResponse instance, never
+   * null or JAXRException.  Rather, if there is a problem, it will
+   * return a YPResponse with a getStatus() of FAILURE and
+   * a non-null getExceptions().
+   * @return a YPResponse with the answer.
+   * @note This method is used by the YP application.  It is unlikely to be useful
+   * or interesting for clients, unlike the rest of the API.
+   **/
+  YPResponse execute(BusinessQueryManager bqm);
+
 }

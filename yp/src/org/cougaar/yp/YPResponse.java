@@ -30,7 +30,7 @@ import java.net.*;
 import java.util.*;
 
 /** Extend JAXR BulkResponse with some asynchronous response variations **/
-public interface YPResponse extends BulkResponse {
+public interface YPResponse extends BulkResponse, Serializable {
   /** Suspend the current thread until response.isAvailable() will return true **/
   void waitForIsAvailable() throws InterruptedException;
 
