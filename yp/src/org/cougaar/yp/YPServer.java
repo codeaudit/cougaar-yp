@@ -248,7 +248,9 @@ public class YPServer extends ComponentSupport {
 
     List l = new ArrayList(1);
     DatabaseEnvelope de = getDatabaseEnvelope();
-    DatabaseEnvelope.logger.info("Encapsulating database "+de);
+    if (DatabaseEnvelope.logger.isInfoEnabled()) {
+      DatabaseEnvelope.logger.info("Encapsulating database " + de);
+    }
     l.add(de);
     return l;
   }
