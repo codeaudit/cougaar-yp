@@ -43,6 +43,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class ServiceList extends UDDIElement {
    public static final String UDDI_TAG = "serviceList";
@@ -127,7 +128,7 @@ public class ServiceList extends UDDIElement {
    }
 
    public boolean getTruncatedBoolean() {
-      return truncated.equals("true");
+      return "true".equals(truncated);
    }
 
    public ServiceInfos getServiceInfos() {

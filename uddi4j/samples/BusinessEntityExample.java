@@ -42,115 +42,146 @@ import java.io.*;
  * @author David Melgar (dmelgar@us.ibm.com)
  * @author Rajesh Sumra (rajesh_sumra@hp.com)
  */
-public class BusinessEntityExample {
+public class BusinessEntityExample
+{
 
-    Properties config = null;
+	Properties config = null;
 
-    public static void main (String args[]) {
-        BusinessEntityExample app = new BusinessEntityExample();
-        System.out.println("\n*********** Running BusinessEntityExample ***********");
-        app.run();
-        System.exit(0);
-    }
+	public static void main (String args[])
+	{
+		BusinessEntityExample app = new BusinessEntityExample();
+		System.out.println("\n*********** Running BusinessEntityExample ***********");
+		app.run();
+		System.exit(0);
+	}
 
-    public void run() {
-        // Load samples configuration
-        config = Configurator.load();
+	public void run()
+	{
+		// Load samples configuration
+		config = Configurator.load();
 
-        // Construct a UDDIProxy object
-        UDDIProxy proxy = new UDDIProxy();
+		// Construct a UDDIProxy object
+		UDDIProxy proxy = new UDDIProxy();
 
-        try {
-            // Select the desired UDDI server node
-            proxy.setInquiryURL(config.getProperty("inquiryURL"));
-            proxy.setPublishURL(config.getProperty("publishURL"));
+		try
+		{
+			// Select the desired UDDI server node
+			proxy.setInquiryURL(config.getProperty("inquiryURL"));
+			proxy.setPublishURL(config.getProperty("publishURL"));
 
-            // Get an authorization token
-            System.out.println("\nGet authtoken");
+			// Get an authorization token
+			System.out.println("\nGet authtoken");
 
-            // Pass in userid and password registered at the UDDI site
-            AuthToken token = proxy.get_authToken(config.getProperty("userid"),
-                                                  config.getProperty("password"));
+			// Pass in userid and password registered at the UDDI site
+			AuthToken token = proxy.get_authToken(config.getProperty("userid"),
+																						config.getProperty("password"));
 
-            System.out.println("Returned authToken:" + token.getAuthInfoString());
+			System.out.println("Returned authToken:" + token.getAuthInfoString());
 
-            System.out.println("\nSave '" + config.getProperty("businessName") + "'");
+			System.out.println("\nSave '" + config.getProperty("businessName") + "'");
 
-            // Create minimum required data objects
-            Vector entities = new Vector();
+			// Create minimum required data objects
+			Vector entities = new Vector();
 
-            // Create a new business entity using required elements constructor
-            // Name is the business name. BusinessKey must be "" to save a new
-            // business
-            BusinessEntity be = new BusinessEntity("", config.getProperty("businessName"));
-            entities.addElement(be);
+			// Create a new business entity using required elements constructor
+			// Name is the business name. BusinessKey must be "" to save a new
+			// business
+			BusinessEntity be = new BusinessEntity("", config.getProperty("businessName"));
+			entities.addElement(be);
 
-            // **** First Save a  business
-            BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
+			// **** First Save a  business
+			BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
 
-            // Process returned BusinessDetail object
-            Vector businessEntities = bd.getBusinessEntityVector();
-            BusinessEntity returnedBusinessEntity = (BusinessEntity)(businessEntities.elementAt(0));
+			// Process returned BusinessDetail object
+			Vector businessEntities = bd.getBusinessEntityVector();
+			BusinessEntity returnedBusinessEntity = (BusinessEntity)(businessEntities.elementAt(0));
 			System.out.println("Business Name : " + returnedBusinessEntity.getDefaultNameString());
 			System.out.println("Business Key  : " + returnedBusinessEntity.getBusinessKey());
 
-            System.out.println("\nFinding business saved");
+			System.out.println("\nFinding business saved");
 
-            //creating vector of Name Object
-            Vector names = new Vector();
-            names.add(new Name(config.getProperty("businessName")));
+			//creating vector of Name Object
+			Vector names = new Vector();
+			names.add(new Name(config.getProperty("businessName")));
 
-            // Setting FindQualifiers to 'exactNameMatch'
-            FindQualifiers findQualifiers = new FindQualifiers();
-            Vector qualifier = new Vector();
-            qualifier.add(new FindQualifier("exactNameMatch"));
-            findQualifiers.setFindQualifierVector(qualifier);
+			// Setting FindQualifiers to 'exactNameMatch'
+			FindQualifiers findQualifiers = new FindQualifiers();
+			Vector qualifier = new Vector();
+			qualifier.add(new FindQualifier("exactNameMatch"));
+			findQualifiers.setFindQualifierVector(qualifier);
 
-            // **** Find business saved.
-            // And setting the maximum rows to be returned as 5.
-            BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
-            Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
-			for (int i = 0; i < businessInfoVector.size(); i++) {
+			// **** Find business saved.
+			// And setting the maximum rows to be returned as 5.
+			BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+			Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+			for( int i = 0; i < businessInfoVector.size(); i++ )
+			{
 				BusinessInfo bi = (BusinessInfo)businessInfoVector.elementAt(i);
-				System.out.println("Business Name : " + bi.getNameString());
+				System.out.println("Business Name : " + bi.getDefaultNameString());
 				System.out.println("Business Key  : " + bi.getBusinessKey());
 			}
 
 			System.out.println("\nDeleting the saved Business");
-         	// Try to delete business saved in first step.
+			// Try to delete business saved in first step.
 			// Delete will fail for businesses not created by this id
 
 			// **** Having the business key, delete Business Entity using the authToken
 			DispositionReport dr = proxy.delete_business (
-										token.getAuthInfoString(),
-										 returnedBusinessEntity.
-										 getBusinessKey());
+																									 token.getAuthInfoString(),
+																									 returnedBusinessEntity.
+																									 getBusinessKey());
 
-			if (dr.success()) {
-			   System.out.println("Business successfully deleted");
-			} else {
-			   System.out.println("Errno:" + dr.getErrno() +
-								  "\n ErrCode:" + dr.getErrCode() +
-								  "\n ErrText:" + dr.getErrInfoText() );
+			if( dr.success() )
+			{
+				System.out.println("Business successfully deleted");
 			}
+			else
+			{
+				System.out.println(" Error during deletion of Business\n"+
+													 "\n operator:" + dr.getOperator() +
+													 "\n generic:"  + dr.getGeneric() );
 
+				Vector results = dr.getResultVector();
+				for( int i=0; i<results.size(); i++ )
+				{
+					Result r = (Result)results.elementAt(i);
+					System.out.println("\n errno:"    + r.getErrno() );
+					if( r.getErrInfo()!=null )
+					{
+						System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+															 "\n errInfoText:" + r.getErrInfo().getText());
+					}
+				}
+			}			
+		}
+		// Handle possible errors
+		catch( UDDIException e )
+		{
+			DispositionReport dr = e.getDispositionReport();
+			if( dr!=null )
+			{
+				System.out.println("UDDIException faultCode:" + e.getFaultCode() +
+													 "\n operator:" + dr.getOperator() +
+													 "\n generic:"  + dr.getGeneric() );
 
-        // Handle possible errors
-        } catch (UDDIException e) {
-            DispositionReport dr = e.getDispositionReport();
-            if (dr!=null) {
-                System.out.println("UDDIException faultCode:" + e.getFaultCode() +
-                                   "\n operator:" + dr.getOperator() +
-                                   "\n generic:"  + dr.getGeneric() +
-                                   "\n errno:"    + dr.getErrno() +
-                                   "\n errCode:"  + dr.getErrCode() +
-                                   "\n errInfoText:" + dr.getErrInfoText());
-            }
-            e.printStackTrace();
-
-        // Catch any other exception that may occur
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+				Vector results = dr.getResultVector();
+				for( int i=0; i<results.size(); i++ )
+				{
+					Result r = (Result)results.elementAt(i);
+					System.out.println("\n errno:"    + r.getErrno() );
+					if( r.getErrInfo()!=null )
+					{
+						System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+															 "\n errInfoText:" + r.getErrInfo().getText());
+					}
+				}
+			}
+			e.printStackTrace();			
+		}
+		// Catch any other exception that may occur
+		catch( Exception e )
+		{
+			e.printStackTrace();
+		}
+	}
 }

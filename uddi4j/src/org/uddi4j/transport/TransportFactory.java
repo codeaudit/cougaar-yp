@@ -70,7 +70,7 @@ public class TransportFactory {
    /**
     * Create a TransportFactory.
     * 
-    * @return 
+    * @return TransportFactory
     */
    static public TransportFactory newInstance() {
       return new TransportFactory(System.getProperties());
@@ -82,7 +82,7 @@ public class TransportFactory {
     * 
     * @param p Properties
     * @return TransportFactory
-    * @see UDDIProxy(Properties) constructor for information on configuration object.
+    * @see org.uddi4j.client.UDDIProxy#UDDIProxy(Properties) UDDIProxy(Properties) constructor for information on configuration object.
     */
    static public TransportFactory newInstance(Properties p) {
       return new TransportFactory(p);

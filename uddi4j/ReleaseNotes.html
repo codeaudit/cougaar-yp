@@ -20,6 +20,11 @@
       <TD>Notes</TD>
     </TR>
     <TR>
+     <TD>2.0.1</TD>
+     <TD>01/30/2003</TD>
+     <TD>UDDI4J minor update release, including updated Axis support, spec compliance fixes, and minor bug fixes.</TD>  
+    </TR>
+    <TR>
      <TD>2.0</TD>
      <TD>5/15/2002</TD>
      <TD>UDDI4J release with v2 support. Minor changes from 2.0 beta. Errata 3 support,
@@ -65,6 +70,35 @@
 <P><BR>
 </P>
 <H2>Change log</H2>
+<H4>2.0.1 release 30/01/2003</H4>
+<BLOCKQUOTE>Change from 2.0 release include:<BR>
+<UL>
+ <li> Axis 1.x update
+ <li> Ant 1.5.x update
+ <li> BindingTemplate
+ <br>  Required fields constructors updated to ensure either HostingRedirector or AccessPoint is present.
+ <li> BusinessInfo
+ <br>  Updated to support multiple Name objects.
+ <li> DispositionReport
+ <br>  Updated to include missing 'truncated' attribute.
+ <br>  Updated to better represent the component objects of a DispositionReport.
+ <li> KeysOwned
+ <br>  Minor fixes to avoid Null Pointer Exceptions.
+ <li> RelatedBusinessInfo
+ <br>  Updated to support multiple Name and Description objects.
+ <li> ServiceInfo
+ <br>  Updated to support multiple Name objects.
+ <li> TModelInfo 
+ <br>  Minor fix to avoid possible Null Pointer Exception.
+ <li> 'All Publish API requests'
+ <br>  Minor updates to avoid possible Null Pointer Exception.
+ <li> FindService, FindBusiness, FindTModel, GetCompletionStatus, AuthToken
+ <br>  Minor updates to avoid possible Null Pointer Exception.
+ <li> BindingDetail, BusinessDetail, BusinessDetailExt, BusinessList, ServiceList, TModelDetail, TModelList
+ <br>  Updated to avoid Null Pointer Exception handling optional truncated attribute.
+</UL>
+</BLOCKQUOTE>
+
 <H4>2.0 release 5/15/2002</H4>
 <BLOCKQUOTE>Change from 2.0 beta include:<BR>
 <UL>

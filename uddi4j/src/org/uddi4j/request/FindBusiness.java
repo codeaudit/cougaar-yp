@@ -47,6 +47,7 @@ import org.uddi4j.util.*;
  * @author David Melgar (dmelgar@us.ibm.com)
  * @author Ravi Trivedi (ravi_trivedi@hp.com)
  * @author Vivek Chopra (vivek@soaprpc.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class FindBusiness extends UDDIElement {
    public static final String UDDI_TAG = "find_business";
@@ -219,7 +220,10 @@ public class FindBusiness extends UDDIElement {
    }
 
    public Name getDefaultName() {
-      return (Name) nameVector.elementAt(0);
+      if(nameVector.size() > 0)
+        return (Name) nameVector.elementAt(0);
+      else
+        return null;
    }
 
    public String getDefaultNameString() {

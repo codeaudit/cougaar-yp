@@ -43,6 +43,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class TModelInfo extends UDDIElement {
    public static final String UDDI_TAG = "tModelInfo";
@@ -118,7 +119,10 @@ public class TModelInfo extends UDDIElement {
    }
 
    public String getNameString() {
-      return name.getText();
+      if(name!=null)
+        return name.getText();
+      else
+        return null;
    }
 
    /**

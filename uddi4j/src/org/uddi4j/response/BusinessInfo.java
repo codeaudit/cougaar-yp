@@ -44,6 +44,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class BusinessInfo extends UDDIElement {
    public static final String UDDI_TAG = "businessInfo";
@@ -51,8 +52,9 @@ public class BusinessInfo extends UDDIElement {
    protected Element base = null;
 
    String businessKey = null;
-   Name name = null;
    ServiceInfos serviceInfos = null;
+   // Vector of Name objects
+   Vector name = new Vector();
    // Vector of Description objects
    Vector description = new Vector();
 
@@ -77,7 +79,7 @@ public class BusinessInfo extends UDDIElement {
             String name,
             ServiceInfos serviceInfos) {
       this.businessKey = businessKey;
-      this.name = new Name(name);
+      this.name.addElement(new Name(name));
       this.serviceInfos = serviceInfos;
    }
 
@@ -98,8 +100,8 @@ public class BusinessInfo extends UDDIElement {
       businessKey = base.getAttribute("businessKey");
       NodeList nl = null;
       nl = getChildElementsByTagName(base, Name.UDDI_TAG);
-      if (nl.getLength() > 0) {
-         name = new Name((Element)nl.item(0));
+      for(int i=0; i<nl.getLength() ; i++) {
+         name.addElement(new Name((Element)nl.item(i)));
       }
       nl = getChildElementsByTagName(base, ServiceInfos.UDDI_TAG);
       if (nl.getLength() > 0) {
@@ -114,13 +116,50 @@ public class BusinessInfo extends UDDIElement {
    public void setBusinessKey(String s) {
       businessKey = s;
    }
-
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #setNameVector( Vector )} or
+    * {@link #setDefaultName( Name )} instead
+    */
    public void setName(Name s) {
-      name = s;
+     setDefaultName(s);
    }
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #setNameVector( Vector )} or
+    * {@link #setDefaultNameString(String, String)} instead.
+    */
    public void setName(String s) {
-      name = new Name();
-      name.setText(s);
+     setDefaultNameString(s,null);
+   }
+   /**
+    * This method stores this name as the Default Name (i.e., places it in the 
+    * first location in the Vector).
+    */
+   public void setDefaultName(Name name) {
+      if (this.name.size() > 0) {
+        this.name.setElementAt(name,0);
+      }else{
+        this.name.addElement(name);
+      }
+   }
+   /**
+    * This method stores this String, in the given language as the Default Name
+    * (i.e., places it in the first location in the Vector).
+    */
+   public void setDefaultNameString(String value, String lang) {
+      Name n = new Name(value, lang);
+      if(this.name.size() > 0) {
+        name.setElementAt(n,0);
+      }else{
+        name.addElement(n);
+      }
+   }
+   /**
+    * @param s Vector of <i>Name</i> objects
+    */
+   public void setNameVector(Vector s) {
+     name = s;
    }
 
    public void setServiceInfos(ServiceInfos s) {
@@ -153,13 +192,54 @@ public class BusinessInfo extends UDDIElement {
       return businessKey;
    }
 
-
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #getNameVector ()} or 
+    * {@link #getDefaultName ()} instead.
+    */
    public Name getName() {
-      return name;
+     return getDefaultName();
+   }
+   
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #getNameVector ()} or 
+    * {@link #getDefaultNameString ()} instead.
+    */
+   public String getNameString() {
+      return getDefaultNameString();
    }
 
-   public String getNameString() {
-      return name.getText();
+   /**
+    * Get default name
+    * @return Name
+    */
+   public Name getDefaultName() {
+     if(name.size() > 0) {
+       return (Name) name.elementAt(0);
+     }else{
+       return null;
+     }
+   }
+
+   /** 
+    * Get default name string
+    * @return String
+    */
+   public String getDefaultNameString() {
+     if( name.size() > 0) {
+       return ((Name)name.elementAt(0)).getText();
+     }else{
+       return null;
+     }
+   }
+
+   /**
+    * Get all Names.
+    * @return Vector of <i>Name</i> objects.
+    */
+   public Vector getNameVector() {
+     return name;
    }
 
    public ServiceInfos getServiceInfos() {
@@ -207,12 +287,14 @@ public class BusinessInfo extends UDDIElement {
          base.setAttribute("businessKey", businessKey);
       }
       if (name!=null) {
-         name.saveToXML(base);
+         for (int i=0; i < name.size(); i++) {
+           ((Name)(name.elementAt(i))).saveToXML(base);
+         }
       }
       if (description!=null) {
          for (int i=0; i < description.size(); i++) {
             ((Description)(description.elementAt(i))).saveToXML(base);
-		 }
+	 }
       }
       if (serviceInfos!=null) {
          serviceInfos.saveToXML(base);

@@ -44,6 +44,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class BusinessList extends UDDIElement {
    public static final String UDDI_TAG = "businessList";
@@ -51,7 +52,7 @@ public class BusinessList extends UDDIElement {
    protected Element base = null;
 
    String operator = null;
-   String truncated = null;
+   String truncated = null; //optional attribute
    BusinessInfos businessInfos = null;
 
    /**
@@ -128,7 +129,7 @@ public class BusinessList extends UDDIElement {
    }
 
    public boolean getTruncatedBoolean() {
-      return truncated.equals("true");
+      return "true".equals(truncated);
    }
 
    public BusinessInfos getBusinessInfos() {

@@ -52,6 +52,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author Ravi Trivedi (ravi_trivedi@hp.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class SetPublisherAssertions extends UDDIElement {
 
@@ -124,7 +125,10 @@ public class SetPublisherAssertions extends UDDIElement {
    }
 
    public String getAuthInfoString() {
-      return this.authInfo.getText();
+      if(authInfo!=null)
+        return this.authInfo.getText();
+      else
+        return null;
    }
 
    public void setAuthInfo(String s) {

@@ -44,6 +44,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author Mahesh C S (csmahesh@india.hp.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class KeysOwned extends UDDIElement {
    public static final String UDDI_TAG = "keysOwned";
@@ -95,7 +96,10 @@ public class KeysOwned extends UDDIElement {
    }
 
    public String getFromKeyString() {
-       return fromKey.getText();
+       if(fromKey!=null)
+         return fromKey.getText();
+       else
+         return null;
    }
 
    public void setFromKey(FromKey key) {
@@ -120,7 +124,10 @@ public class KeysOwned extends UDDIElement {
    }
 
    public String getToKeyString() {
-       return toKey.getText();
+       if(toKey!=null)
+         return toKey.getText();
+       else
+         return null;
    }
 
    /**

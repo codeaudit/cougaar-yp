@@ -47,6 +47,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author Mahesh C S (csmahesh@india.hp.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class DeletePublisherAssertions extends UDDIElement {
     public static final String UDDI_TAG = "delete_publisherAssertions";
@@ -137,7 +138,10 @@ public class DeletePublisherAssertions extends UDDIElement {
    }
 
    public String getAuthInfoString() {
-       return authInfo.getText();
+       if(authInfo!=null)
+         return authInfo.getText();
+       else
+         return null;
    }
 
    public void setAuthInfo(String s) {

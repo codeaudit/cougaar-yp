@@ -25,6 +25,7 @@ import org.w3c.dom.Element;
  * Transport implementation for Apache SOAP stack.
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class ApacheSOAPTransport extends TransportBase {
 
@@ -40,6 +41,9 @@ public class ApacheSOAPTransport extends TransportBase {
       connection.setProxyHost(System.getProperty("http.proxyHost"));
       connection.setProxyUserName(System.getProperty("http.proxyUserName"));
       connection.setProxyPassword(System.getProperty("http.proxyPassword"));
+      // Additional properties for HTTP Basic Auth challenges
+      connection.setUserName(System.getProperty("http.basicAuthUserName"));
+      connection.setPassword(System.getProperty("http.basicAuthPassword"));
 
       String proxyPortString = System.getProperty("http.proxyPort");
       if (proxyPortString!=null) {

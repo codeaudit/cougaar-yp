@@ -43,6 +43,7 @@ import org.uddi4j.response.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class IdentifierBag extends UDDIElement {
    public static final String UDDI_TAG = "identifierBag";
@@ -121,7 +122,7 @@ public class IdentifierBag extends UDDIElement {
     * Retrieve the object at the specified index within the collection.
     * 
     * @param index
-    * @return 
+    * @return KeyedReference
     */
    public KeyedReference get(int index) {
       return (KeyedReference)keyedReference.get(index);
@@ -130,7 +131,7 @@ public class IdentifierBag extends UDDIElement {
    /**
     * Return current size of the collection.
     * 
-    * @return 
+    * @return int
     */
    public int size() {
       return keyedReference.size();

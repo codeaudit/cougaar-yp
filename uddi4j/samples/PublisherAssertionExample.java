@@ -45,180 +45,230 @@ import java.io.*;
  *
  * @author Rajesh Sumra (rajesh_sumra@hp.com)
  */
- public class PublisherAssertionExample {
+public class PublisherAssertionExample
+{
 
-    Properties config = null;
+	Properties config = null;
 
-    public static void main (String args[]) {
-        PublisherAssertionExample app = new PublisherAssertionExample();
-        System.out.println("\n*********** Running PublisherAssertionExample ***********");
-        app.run();
-        System.exit(0);
-    }
+	public static void main (String args[])
+	{
+		PublisherAssertionExample app = new PublisherAssertionExample();
+		System.out.println("\n*********** Running PublisherAssertionExample ***********");
+		app.run();
+		System.exit(0);
+	}
 
-    public void run() {
-        // Load samples configuration
-        config = Configurator.load();
+	public void run()
+	{
+		// Load samples configuration
+		config = Configurator.load();
 
-        // Construct a UDDIProxy object
-        UDDIProxy proxy = new UDDIProxy();
+		// Construct a UDDIProxy object
+		UDDIProxy proxy = new UDDIProxy();
 
-        try {
-            // Select the desired UDDI server node
-            proxy.setInquiryURL(config.getProperty("inquiryURL"));
-            proxy.setPublishURL(config.getProperty("publishURL"));
+		try
+		{
+			// Select the desired UDDI server node
+			proxy.setInquiryURL(config.getProperty("inquiryURL"));
+			proxy.setPublishURL(config.getProperty("publishURL"));
 
-            // Get an authorization token
-            System.out.println("\n Get authtoken");
+			// Get an authorization token
+			System.out.println("\n Get authtoken");
 
-            // Pass in userid and password registered at the UDDI site
-            AuthToken token = proxy.get_authToken(config.getProperty("userid"),
-                                                  config.getProperty("password"));
+			// Pass in userid and password registered at the UDDI site
+			AuthToken token = proxy.get_authToken(config.getProperty("userid"),
+																						config.getProperty("password"));
 
-            System.out.println(" Returned authToken:" + token.getAuthInfoString());
+			System.out.println(" Returned authToken:" + token.getAuthInfoString());
 
 			// PublisherAssertion is created between two Business Entities.
 			// Search for a business whose name is in the configuration file
 			// and assert a relationship with the newly created business .
 			// The relationship is picked up from the configuration file.
 
-            System.out.println("\n Saving one Business Entity for PublisherAssertion");
+			System.out.println("\n Saving one Business Entity for PublisherAssertion");
 
-            // Create minimum required data objects
+			// Create minimum required data objects
 
-            System.out.println(" Finding One Business Entity for PublisherAssertion");
-            // Find one more Business Entity from registry, to be used for
-            // asserting a relationship with former saved business entity.
+			System.out.println(" Finding One Business Entity for PublisherAssertion");
+			// Find one more Business Entity from registry, to be used for
+			// asserting a relationship with former saved business entity.
 
-            //creating vector of Name Object
-            Vector names = new Vector();
-            names.add(new Name(config.getProperty("sampleEntityName")));
+			//creating vector of Name Object
+			Vector names = new Vector();
+			names.add(new Name(config.getProperty("sampleEntityName")));
 
-            // Finds one more business .
-            // And setting the maximum rows to be returned as 5.
-            String toKey = "";
-            BusinessList businessList = proxy.find_business(names, null, null, null,null,null,5);
-            Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
-            if (businessInfoVector.size() > 0) {
+			// Finds one more business .
+			// And setting the maximum rows to be returned as 5.
+			String toKey = "";
+			BusinessList businessList = proxy.find_business(names, null, null, null,null,null,5);
+			Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+			if( businessInfoVector.size() > 0 )
+			{
 				BusinessInfo bi = (BusinessInfo)businessInfoVector.elementAt(0);
 				toKey = bi.getBusinessKey();
-			} else {
+			}
+			else
+			{
 				System.out.println(" No businesses found....");
 				System.out.println(" Please change the Business Entity name to be searched !!");
 				System.exit(0);
 			}
 
-            Vector entities = new Vector();
+			Vector entities = new Vector();
 
-            // Create one new business entity using required elements constructor
-            // These will be used for PublisherAssertion.Name is the business name.
-            // BusinessKey must be "" to save a new business
-            BusinessEntity be = new BusinessEntity("", config.getProperty("businessName"));
-            entities.addElement(be);
+			// Create one new business entity using required elements constructor
+			// These will be used for PublisherAssertion.Name is the business name.
+			// BusinessKey must be "" to save a new business
+			BusinessEntity be = new BusinessEntity("", config.getProperty("businessName"));
+			entities.addElement(be);
 
-            // Save business
-            BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
+			// Save business
+			BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
 
-            // Process returned BusinessDetail object
-            Vector businessEntities = bd.getBusinessEntityVector();
-            BusinessEntity returnedBusinessEntity = (BusinessEntity)(businessEntities.elementAt(0));
-
-
-            // Get FromKey And ToKey from Business Entities returned and found
-            String fromKey = returnedBusinessEntity.getBusinessKey();
-
-            // Create KeyedReference with relationShip between
-            // FromKey and Tokey . And set the TModelKey
-            // so that it refers to uddi-org:relationships
-            KeyedReference keyedReference = new KeyedReference (
-											"Holding Company",
-											config.getProperty (
-											"assertionRelationship"));
-            keyedReference.setTModelKey(TModel.RELATIONSHIPS_TMODEL_KEY);
-
-            // Create PublisherAssertion using KeyedReference, Fromkey
-            // and Tokey. The Publisher Assertion is used to express the
-            // relationship exist between BusinessEntities.
-            PublisherAssertion publisherAssertion =
-            			new PublisherAssertion(fromKey,toKey,keyedReference);
-
-            System.out.println("\n Adding PublisherAssertions");
-            System.out.println(" FromKey : " + fromKey);
-            System.out.println(" ToKey   : " + toKey);
-
-            //  **** Add the  PublisherAssertion
-            DispositionReport dispositionReport=proxy.add_publisherAssertions(
-            										token.getAuthInfoString(),
-            										publisherAssertion);
+			// Process returned BusinessDetail object
+			Vector businessEntities = bd.getBusinessEntityVector();
+			BusinessEntity returnedBusinessEntity = (BusinessEntity)(businessEntities.elementAt(0));
 
 
-            System.out.println("\n Finding out the businesses which are related");
+			// Get FromKey And ToKey from Business Entities returned and found
+			String fromKey = returnedBusinessEntity.getBusinessKey();
 
-            // Find related businesses using business key and keyedReference
-            RelatedBusinessesList relatedBusinessesList =
-            					proxy.find_relatedBusinesses(
-										fromKey, keyedReference, null);
+			// Create KeyedReference with relationShip between
+			// FromKey and Tokey . And set the TModelKey
+			// so that it refers to uddi-org:relationships
+			KeyedReference keyedReference = new KeyedReference("Holding Company",
+																												  config.getProperty("assertionRelationship")
+																												);
 
-            System.out.println(" The businesses which are related to '"
-            					+ config.getProperty("businessName") + "': ");
+			keyedReference.setTModelKey(TModel.RELATIONSHIPS_TMODEL_KEY);
 
-            Vector relatedBusinessInfoVector  =
-            				relatedBusinessesList.getRelatedBusinessInfos().
-            				getRelatedBusinessInfoVector();
-            for (int i = 0; i < relatedBusinessInfoVector.size(); i++) {
-                RelatedBusinessInfo relatedBusinessInfo =
-                	(RelatedBusinessInfo)relatedBusinessInfoVector.elementAt(i);
+			// Create PublisherAssertion using KeyedReference, Fromkey
+			// and Tokey. The Publisher Assertion is used to express the
+			// relationship exist between BusinessEntities.
+			PublisherAssertion publisherAssertion =
+			new PublisherAssertion(fromKey,toKey,keyedReference);
 
-                // Print name for each businesses
-                System.out.println(" " + relatedBusinessInfo.getNameString());
-            }
+			System.out.println("\n Adding PublisherAssertions");
+			System.out.println(" FromKey : " + fromKey);
+			System.out.println(" ToKey   : " + toKey);
 
-            //  **** Deletes the PublisherAssertion
-            System.out.println("\n Deleting the PublisherAssertion added in First step");
-            dispositionReport = proxy.delete_publisherAssertions (
-							token.getAuthInfoString(),publisherAssertion);
-            if (dispositionReport.success()) {
-               System.out.println(" PublisherAssertion successfully deleted");
-            } else {
-               System.out.println("Errno:" + dispositionReport.getErrno() +
-                                  "\n ErrCode:" + dispositionReport.getErrCode() +
-                                  "\n ErrText:" + dispositionReport.getErrInfoText() );
-            }
+			//  **** Add the  PublisherAssertion
+			DispositionReport dispositionReport=proxy.add_publisherAssertions(token.getAuthInfoString(),
+																																			  publisherAssertion);
+
+
+			System.out.println("\n Finding out the businesses which are related");
+
+			// Find related businesses using business key and keyedReference
+			// maxRows set at 0 means to return as many results as possible
+			RelatedBusinessesList relatedBusinessesList =
+			proxy.find_relatedBusinesses(
+																	fromKey, keyedReference, null, 0);
+
+			System.out.println(" The businesses which are related to '"
+												 + config.getProperty("businessName") + "': ");
+
+			Vector relatedBusinessInfoVector  =
+			relatedBusinessesList.getRelatedBusinessInfos().
+			getRelatedBusinessInfoVector();
+			for( int i = 0; i < relatedBusinessInfoVector.size(); i++ )
+			{
+				RelatedBusinessInfo relatedBusinessInfo =
+				(RelatedBusinessInfo)relatedBusinessInfoVector.elementAt(i);
+
+				// Print name for each businesses
+				System.out.println(" " + relatedBusinessInfo.getDefaultNameString());
+			}
+
+			//  **** Deletes the PublisherAssertion
+			System.out.println("\n Deleting the PublisherAssertion added in First step");
+			dispositionReport = proxy.delete_publisherAssertions (token.getAuthInfoString(),publisherAssertion);
+			if( dispositionReport.success() )
+			{
+				System.out.println(" PublisherAssertion successfully deleted");
+			}
+			else
+			{
+				System.out.println(" Error during deletion of PublisherAssertion\n"+
+													 "\n operator:" + dispositionReport.getOperator() +
+													 "\n generic:"  + dispositionReport.getGeneric() );
+
+				Vector results = dispositionReport.getResultVector();
+				for( int i=0; i<results.size(); i++ )
+				{
+					Result r = (Result)results.elementAt(i);
+					System.out.println("\n errno:"    + r.getErrno() );
+					if( r.getErrInfo()!=null )
+					{
+						System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+															 "\n errInfoText:" + r.getErrInfo().getText());
+					}
+				}
+			}
 
 
 			// Tries to clean up the registry, for the structures we just created
 			//(by deleting the BusinessEntity)
-		    System.out.println("\n Cleaning the Data Structures added/saved from registry");
+			System.out.println("\n Cleaning the Data Structures added/saved from registry");
 			{
 				// delete using the authToken and businessKey
 				DispositionReport dr = proxy.delete_business(token.getAuthInfoString(),
-															 fromKey);
+																										 fromKey);
 
-				if (dr.success()) {
-				   System.out.println(" Registry successfully cleaned");
-				} else {
-				   System.out.println("Errno:" + dr.getErrno() +
-									  "\n ErrCode:" + dr.getErrCode() +
-									  "\n ErrText:" + dr.getErrInfoText() );
+				if( dr.success() )
+				{
+					System.out.println(" Registry successfully cleaned");
+				}
+				else
+				{
+					System.out.println(" Error during deletion of Business\n"+
+														 "\n operator:" + dr.getOperator() +
+														 "\n generic:"  + dr.getGeneric() );
+
+					Vector results = dr.getResultVector();
+					for( int i=0; i<results.size(); i++ )
+					{
+						Result r = (Result)results.elementAt(i);
+						System.out.println("\n errno:"    + r.getErrno() );
+						if( r.getErrInfo()!=null )
+						{
+							System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+																 "\n errInfoText:" + r.getErrInfo().getText());
+						}
+					}
+
+				}
+			}			
+		}
+		// Handle possible errors
+		catch( UDDIException e )
+		{
+			DispositionReport dr = e.getDispositionReport();
+			if( dr!=null )
+			{
+				System.out.println("UDDIException faultCode:" + e.getFaultCode() +
+													 "\n operator:" + dr.getOperator() +
+													 "\n generic:"  + dr.getGeneric() );
+
+				Vector results = dr.getResultVector();
+				for( int i=0; i<results.size(); i++ )
+				{
+					Result r = (Result)results.elementAt(i);
+					System.out.println("\n errno:"    + r.getErrno() );
+					if( r.getErrInfo()!=null )
+					{
+						System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+															 "\n errInfoText:" + r.getErrInfo().getText());
+					}
 				}
 			}
-
-        // Handle possible errors
-        } catch (UDDIException e) {
-            DispositionReport dr = e.getDispositionReport();
-            if (dr!=null) {
-                System.out.println("UDDIException faultCode:" + e.getFaultCode() +
-                                   "\n operator:" + dr.getOperator() +
-                                   "\n generic:"  + dr.getGeneric() +
-                                   "\n errno:"    + dr.getErrno() +
-                                   "\n errCode:"  + dr.getErrCode() +
-                                   "\n errInfoText:" + dr.getErrInfoText());
-            }
-            e.printStackTrace();
-
-            // Catch any other exception that may occur
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+			e.printStackTrace();			
+		}
+		// Catch any other exception that may occur
+		catch( Exception e )
+		{
+			e.printStackTrace();
+		}
+	}
 }

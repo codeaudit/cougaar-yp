@@ -96,6 +96,7 @@ import org.uddi4j.util.KeyedReference;
  * @author David Melgar (dmelgar@us.ibm.com)
  * @author Ravi Trivedi (ravi_trivedi@hp.com)
  * @author Vivek Chopra (vivek@soaprpc.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class UDDIProxy {
 
@@ -103,7 +104,7 @@ public class UDDIProxy {
    protected URL inquiryURL = null;
    protected URL publishURL = null;
    TransportFactory transportFactory = null;
-  Transport transport = null;
+   Transport transport = null;	
    Properties    config     = null;
 
   protected final Transport getTransport() throws TransportException {
@@ -124,20 +125,19 @@ public class UDDIProxy {
     * Default constructor.
    */
    public UDDIProxy() {
-     // transportFactory = TransportFactory.newInstance();
+      //transportFactory = TransportFactory.newInstance();
    }
 
    public UDDIProxy(Transport t) {
      transport = t;
    }
 
+
    /**
     * Construct a UDDIProxy object.
     *
     * @param inquiryURL URL to be used for inquiry requests.
     * @param publishURL URL to be used for publish requests.
-    * @param transport  null indicates standard HTTP transport. Can pass in
-    *                   a different transport to use.
     */
    public UDDIProxy(URL inquiryURL, URL publishURL) {
       this();
@@ -549,7 +549,7 @@ public class UDDIProxy {
      * @exception TransportException
      * @deprecated UDDI version 2, errata 2 added maxrows as a parameter
      *             to this method. Use
-     *             {@link #find_business(String, KeyedReference, FindQualifiers, int)} instead
+     *             {@link #find_relatedBusinesses(String, KeyedReference, FindQualifiers, int)} instead
      */
     public RelatedBusinessesList find_relatedBusinesses(String businessKey,
                                                        KeyedReference keyedReference,

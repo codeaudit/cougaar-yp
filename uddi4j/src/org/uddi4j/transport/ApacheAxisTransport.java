@@ -79,7 +79,7 @@ public class ApacheAxisTransport extends TransportBase {
       } catch (AxisFault fault) {
          try {
             Message m = call.getResponseMessage();
-            base = ((SOAPBodyElement)(m.getSOAPPart().getAsSOAPEnvelope().getBodyElements().elementAt(0))).getAsDOM();
+            base = m.getSOAPEnvelope().getFirstBody().getAsDOM();
          } catch (Exception e) {
             throw new TransportException(e);
          }

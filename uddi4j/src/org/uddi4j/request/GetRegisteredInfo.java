@@ -47,6 +47,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class GetRegisteredInfo extends UDDIElement {
    public static final String UDDI_TAG = "get_registeredInfo";
@@ -106,7 +107,10 @@ public class GetRegisteredInfo extends UDDIElement {
    }
 
    public String getAuthInfoString() {
-      return authInfo.getText();
+      if(authInfo!=null)
+        return authInfo.getText();
+      else
+        return null;
    }
 
    /**

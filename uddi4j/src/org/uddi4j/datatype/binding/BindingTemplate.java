@@ -25,7 +25,7 @@ import org.uddi4j.util.*;
  * This class represents an element within the UDDI version 2.0 schema.
  * This class contains the following types of methods:<ul>
  *
- *   <li>Constructor passing required fields.
+ *   <li>Constructors for passing required fields.
  *   <li>Constructor that will instantiate the object from an XML DOM element
  *       that is the appropriate element for this object.
  *   <li>Get/set methods for each attribute that this element can contain.
@@ -42,6 +42,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class BindingTemplate extends UDDIElement {
    public static final String UDDI_TAG = "bindingTemplate";
@@ -71,11 +72,44 @@ public class BindingTemplate extends UDDIElement {
     *
     * @param bindingKey String
     * @param TModelInstanceDetails  TModelInstanceDetails object
+    * @deprecated This method has been deprecated. Use
+    * {@link #BindingTemplate(String, TModelInstanceDetails, AccessPoint)} or
+    * {@link #BindingTemplate(String, TModelInstanceDetails, HostingRedirector)} instead.
     */
    public BindingTemplate(String bindingKey,
       TModelInstanceDetails tModelInstanceDetails) {
       this.bindingKey = bindingKey;
       this.tModelInstanceDetails = tModelInstanceDetails;
+   }
+
+   /**
+    * Construct the object with required fields.
+    *
+    * @param bindingKey String
+    * @param TModelInstanceDetails  TModelInstanceDetails object
+    * @param AccessPoint AccessPoint object
+    */
+   public BindingTemplate(String bindingKey,
+      TModelInstanceDetails tModelInstanceDetails,
+      AccessPoint accessPoint) {
+      this.bindingKey = bindingKey;
+      this.tModelInstanceDetails = tModelInstanceDetails;
+      this.accessPoint = accessPoint;
+   }
+
+   /**
+    * Construct the object with required fields.
+    *
+    * @param bindingKey String
+    * @param TModelInstanceDetails  TModelInstanceDetails object
+    * @param HostingRedirector Hosting Redirector object
+    */
+   public BindingTemplate(String bindingKey,
+      TModelInstanceDetails tModelInstanceDetails,
+      HostingRedirector hostingRedirector) {
+      this.bindingKey = bindingKey;
+      this.tModelInstanceDetails = tModelInstanceDetails;
+      this.hostingRedirector = hostingRedirector;
    }
 
    /**
@@ -122,10 +156,16 @@ public class BindingTemplate extends UDDIElement {
 
    public void setAccessPoint(AccessPoint s) {
       accessPoint = s;
+      // if user has just set a real access point, then wipe the hostingRedirector
+      if( accessPoint != null && hostingRedirector != null )
+        hostingRedirector = null;
    }
 
    public void setHostingRedirector(HostingRedirector s) {
       hostingRedirector = s;
+      // if user has just set a real hostingRedirector, then wipe the accessPoint
+      if( hostingRedirector != null && accessPoint != null )
+        accessPoint = null;
    }
 
    public void setTModelInstanceDetails(TModelInstanceDetails s) {

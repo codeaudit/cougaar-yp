@@ -46,6 +46,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author Mahesh C S (csmahesh@india.hp.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class GetAssertionStatusReport extends UDDIElement {
    public static final String UDDI_TAG = "get_assertionStatusReport";
@@ -131,7 +132,10 @@ public class GetAssertionStatusReport extends UDDIElement {
    }
 
    public String getCompletionStatusString() {
-       return completionStatus.getText();
+       if(completionStatus!=null)
+         return completionStatus.getText();
+       else
+         return null;
    }
 
    public void setCompletionStatusString(String s) {
@@ -148,7 +152,10 @@ public class GetAssertionStatusReport extends UDDIElement {
    }
 
    public String getAuthInfoString() {
-       return authInfo.getText();
+       if(authInfo != null)
+         return authInfo.getText();
+       else
+         return null;
    }
 
    public void setAuthInfo(String s) {

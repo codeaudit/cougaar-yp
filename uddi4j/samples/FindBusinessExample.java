@@ -35,66 +35,83 @@ import java.util.Vector;
  * @author Rajesh Sumra (rajesh_sumra@hp.com)
  */
 
-public class FindBusinessExample {
-   Properties config = null;
+public class FindBusinessExample
+{
+	Properties config = null;
 
-   public static void main (String args[]) {
-      FindBusinessExample app = new FindBusinessExample();
-      System.out.println("\n*********** Running FindBusinessExample ***********");
-      app.run();
-      System.exit(0);
-   }
+	public static void main (String args[])
+	{
+		FindBusinessExample app = new FindBusinessExample();
+		System.out.println("\n*********** Running FindBusinessExample ***********");
+		app.run();
+		System.exit(0);
+	}
 
-   public void run() {
-      // Load samples configuration
-      config = Configurator.load();
+	public void run()
+	{
+		// Load samples configuration
+		config = Configurator.load();
 
-      // Construct a UDDIProxy object.
-      UDDIProxy proxy = new UDDIProxy();
+		// Construct a UDDIProxy object.
+		UDDIProxy proxy = new UDDIProxy();
 
-      try {
-         // Select the desired UDDI server node
-         proxy.setInquiryURL(config.getProperty("inquiryURL"));
-         proxy.setPublishURL(config.getProperty("publishURL"));
+		try
+		{
+			// Select the desired UDDI server node
+			proxy.setInquiryURL(config.getProperty("inquiryURL"));
+			proxy.setPublishURL(config.getProperty("publishURL"));
 
-         //creating vector of Name Object
-         Vector names = new Vector();
-         names.add(new Name("S"));
+			//creating vector of Name Object
+			Vector names = new Vector();
+			names.add(new Name("S"));
 
-         // Setting FindQualifiers to 'caseSensitiveMatch'
-         FindQualifiers findQualifiers = new FindQualifiers();
-         Vector qualifier = new Vector();
-         qualifier.add(new FindQualifier("caseSensitiveMatch"));
-         findQualifiers.setFindQualifierVector(qualifier);
+			// Setting FindQualifiers to 'caseSensitiveMatch'
+			FindQualifiers findQualifiers = new FindQualifiers();
+			Vector qualifier = new Vector();
+			qualifier.add(new FindQualifier("caseSensitiveMatch"));
+			findQualifiers.setFindQualifierVector(qualifier);
 
-         // Find businesses by name
-         // And setting the maximum rows to be returned as 5.
-         BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+			// Find businesses by name
+			// And setting the maximum rows to be returned as 5.
+			BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
 
-         Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
-         for (int i = 0; i < businessInfoVector.size(); i++) {
-            BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
+			Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+			for( int i = 0; i < businessInfoVector.size(); i++ )
+			{
+				BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
 
-            // Print name for each business
-            System.out.println(businessInfo.getNameString());
-         }
+				// Print name for each business
+				System.out.println(businessInfo.getDefaultNameString());
+			}			
+		}
+		// Handle possible errors
+		catch( UDDIException e )
+		{
+			DispositionReport dr = e.getDispositionReport();
+			if( dr!=null )
+			{
+				System.out.println("UDDIException faultCode:" + e.getFaultCode() +
+													 "\n operator:" + dr.getOperator() +
+													 "\n generic:"  + dr.getGeneric() );
 
-         // Handle possible errors
-      } catch (UDDIException e) {
-         DispositionReport dr = e.getDispositionReport();
-         if (dr!=null) {
-            System.out.println("UDDIException faultCode:" + e.getFaultCode() +
-                               "\n operator:" + dr.getOperator() +
-                               "\n generic:"  + dr.getGeneric() +
-                               "\n errno:"    + dr.getErrno() +
-                               "\n errCode:"  + dr.getErrCode() +
-                               "\n errInfoText:" + dr.getErrInfoText());
-         }
-         e.printStackTrace();
-
-         // Catch any other exception that may occur
-      } catch (Exception e) {
-         e.printStackTrace();
-      }
-   }
+				Vector results = dr.getResultVector();
+				for( int i=0; i<results.size(); i++ )
+				{
+					Result r = (Result)results.elementAt(i);
+					System.out.println("\n errno:"    + r.getErrno() );
+					if( r.getErrInfo()!=null )
+					{
+						System.out.println("\n errCode:"  + r.getErrInfo().getErrCode() +
+															 "\n errInfoText:" + r.getErrInfo().getText());
+					}
+				}
+			}
+			e.printStackTrace();			
+		}
+		// Catch any other exception that may occur
+		catch( Exception e )
+		{
+			e.printStackTrace();
+		}
+	}
 }

@@ -47,6 +47,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author Ravi Trivedi (ravi_trivedi@hp.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class RelatedBusinessesList extends UDDIElement {
 
@@ -115,7 +116,7 @@ public class RelatedBusinessesList extends UDDIElement {
 
 
   public boolean getTruncatedBoolean() {
-     return truncated.equals("true");
+     return "true".equals(truncated);
   }
 
    public void setTruncated(boolean s) {

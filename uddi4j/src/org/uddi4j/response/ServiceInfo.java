@@ -44,6 +44,7 @@ import org.uddi4j.util.*;
  * <p>
  *
  * @author David Melgar (dmelgar@us.ibm.com)
+ * @author Ozzy (ozzy@hursley.ibm.com)
  */
 public class ServiceInfo extends UDDIElement {
    public static final String UDDI_TAG = "serviceInfo";
@@ -52,7 +53,8 @@ public class ServiceInfo extends UDDIElement {
 
    String serviceKey = null;
    String businessKey = null;
-   Name name = null;
+   // Vector of name
+   Vector nameVector = new Vector();
 
    /**
     * Default constructor.
@@ -73,7 +75,7 @@ public class ServiceInfo extends UDDIElement {
    public ServiceInfo(String serviceKey,
             String name) {
       this.serviceKey = serviceKey;
-      this.name = new Name(name);
+      this.nameVector.addElement(new Name(name));
    }
 
    /**
@@ -94,8 +96,8 @@ public class ServiceInfo extends UDDIElement {
       businessKey = base.getAttribute("businessKey");
       NodeList nl = null;
       nl = getChildElementsByTagName(base, Name.UDDI_TAG);
-      if (nl.getLength() > 0) {
-         name = new Name((Element)nl.item(0));
+      for (int i=0; i<nl.getLength(); i++) {
+         nameVector.addElement(new Name((Element)nl.item(0)));
       }
    }
 
@@ -107,12 +109,54 @@ public class ServiceInfo extends UDDIElement {
       businessKey = s;
    }
 
-   public void setName(Name s) {
-      name = s;
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #setNameVector (Vector)} or
+    * {@link #setDefaultName (Name)} instead
+    */
+    public void setName(Name s) {
+      setDefaultName(s);
+    }
+
+   /**
+    * @deprecated This method has been deprecated. Use
+    * {@link #setNameVector (Vector)} or
+    * {@link #setDefaultNameString (String, String)} instead
+    */
+    public void setName(String s) {
+       setDefaultNameString(s, null);
+    }
+
+  /**
+   * This method stores this name as the Default Name (i.e., places it in the first
+   * location in the Vector).
+   */
+   public void setDefaultName(Name name) {
+     if (nameVector.size() > 0) {
+      nameVector.setElementAt(name,0);
+     } else {
+      nameVector.addElement(name);
+     }
    }
-   public void setName(String s) {
-      name = new Name();
-      name.setText(s);
+
+  /**
+   * This method stores this String, in the given language as the Default Name
+   * (i.e., places it in the first location in the Vector).
+   */
+   public void setDefaultNameString(String value, String lang) {
+      Name name = new Name(value, lang);
+       if (nameVector.size() > 0) {
+         nameVector.setElementAt(name,0);
+       } else {
+         nameVector.addElement(name);
+       }
+   }
+
+  /**
+   * @param s  Vector of <I> Name </I> objects
+   */
+   public void setNameVector(Vector s) {
+      nameVector = s;
    }
 
    public String getServiceKey() {
@@ -124,13 +168,49 @@ public class ServiceInfo extends UDDIElement {
       return businessKey;
    }
 
-
+  /**
+   * @deprecated This method has been deprecated. Use
+   * {@link #getNameVector ()} or
+   * {@link #getDefaultName ()} instead
+   */
    public Name getName() {
-      return name;
+      return getDefaultName();
    }
 
+  /**
+   * @deprecated This method has been deprecated. Use
+   * {@link #getNameVector ()} or
+   * {@link #getDefaultNameString ()} instead
+   */
    public String getNameString() {
-      return name.getText();
+      return getDefaultNameString();
+   }
+
+
+   public Name getDefaultName() {
+      return (Name) nameVector.elementAt(0);
+   }
+
+  /**
+    * Get default name string.
+    *
+    * @return  String
+    */
+   public String getDefaultNameString() {
+       if ((nameVector).size() > 0) {
+        return ((Name)nameVector.elementAt(0)).getText();
+       }  else {
+           return null;
+       }
+   }
+
+   /**
+    * Get all names.
+    *
+    * @return  Vector of <I>Name</I> objects.
+    */
+   public Vector  getNameVector() {
+      return nameVector ;
    }
 
    /**
@@ -152,8 +232,10 @@ public class ServiceInfo extends UDDIElement {
       if (businessKey!=null) {
          base.setAttribute("businessKey", businessKey);
       }
-      if (name!=null) {
-         name.saveToXML(base);
+      if (nameVector!=null && nameVector.size()>0) {
+         for(int i=0;i<nameVector.size();i++) {
+           ((Name)nameVector.elementAt(i)).saveToXML(base);
+         }
       }
       parent.appendChild(base);
    }
