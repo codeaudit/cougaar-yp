@@ -23,8 +23,8 @@ package org.cougaar.yp;
 
 import org.uddi4j.UDDIElement;
 import org.uddi4j.client.*;
-import org.uddi4j.transport.*;
 import org.uddi4j.response.DispositionReport;
+import org.uddi4j.transport.*;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -61,10 +61,12 @@ import java.sql.*;
 // juddi imports
 import org.juddi.datastore.jdbc.CreateDatabase;
 import org.juddi.datastore.jdbc.HSQLDataStoreFactory;
+import org.juddi.error.JUDDIException;
 import org.juddi.service.ServiceFactory;
 import org.juddi.service.UDDIService;
 import org.juddi.transport.axis.RequestFactory;
-import org.juddi.error.JUDDIException;
+import org.juddi.util.Config;
+
 
 
 /**
@@ -106,8 +108,6 @@ public class YPServer extends ComponentSupport {
 
   protected final String installPath = System.getProperty("org.cougaar.install.path", "/tmp");
   protected final String workspacePath = System.getProperty("org.cougaar.workspace", installPath + "/workspace");
-  protected final String juddiHomeDirPath;
-  protected final File juddiHomeDir;
   protected File dbDirectory;
 
   public YPServer() {
@@ -116,9 +116,6 @@ public class YPServer extends ComponentSupport {
       hp = workspacePath + "/juddi";
       System.setProperty("juddi.homeDir", hp);
     }
-    juddiHomeDirPath = hp;
-
-    juddiHomeDir = new File(juddiHomeDirPath);
   }
 
   public void initialize() {
@@ -151,10 +148,10 @@ public class YPServer extends ComponentSupport {
       throw new RuntimeException("YPServer got null MessageAddress for local Agent from MessageSwitchService!");
     }
 
-    juddiHomeDir.mkdirs();
-    File td = new File(juddiHomeDir, "hsql");
-    dbDirectory = new File(td, originMA.toString());
+    Config.dbTag.set(originMA.toString());
+    dbDirectory = new File(Config.getHomeDir(), "hsql");
     dbDirectory.mkdirs();
+
 
     initUDDI();
     initDB();                   // uses rehydrated database information, if available
@@ -199,7 +196,7 @@ public class YPServer extends ComponentSupport {
 		  " dropping database connection for persistence snapshot" );
     }
     
-    org.juddi.datastore.jdbc.HSQLDataStoreFactory.dbTag.set(originMA.toString());
+    Config.dbTag.set(originMA.toString());
     org.juddi.datastore.jdbc.HSQLDataStoreFactory.closeConnection();
 
     getServiceBroker().releaseService(this, AgentIdentificationService.class, 
@@ -278,7 +275,7 @@ public class YPServer extends ComponentSupport {
   private void startServiceThread() {
     serviceThread = new ServiceThread( new ServiceThread.Callback() {
         public void dispatch(Message m) {
-	  org.juddi.datastore.jdbc.HSQLDataStoreFactory.dbTag.set(originMA.toString());
+	  Config.dbTag.set(originMA.toString());
           dispatchQuery((YPQueryMessage)m);
         }},
                                        logger,
@@ -425,59 +422,50 @@ public class YPServer extends ComponentSupport {
     }
   }
 
-  private void copyFiles(String dir) {
-    copyFiles(dir, "");
-  }
+  private void copyFiles(String ypDir, String juddiDir) {
+    File ypSourceDir = new File(installPath + "/yp/data/juddi/" + ypDir);
+    File newDir = new File(juddiDir);
 
-  private void copyFiles(String dir, String dbTag) {
     try {
-      File newDir = new File(juddiHomeDir, dir);
-      newDir.mkdir();
       
-      // If dbTag is specified, create a subdirectory
-      if (!dbTag.equals("")) {
-	newDir = new File(newDir, dbTag);
-	newDir.mkdir();
+      if (!ypSourceDir.canRead()) {
+	logger.fatal("ypSourceDir: unable to read " + 
+		     ypSourceDir.getPath() + " directory");
+	return;
       }
-
-
-      File ypTargetDir = new File(installPath + "/yp/data/juddi/" + dir);
-
-      if (!ypTargetDir.canRead()) {
-        logger.fatal("ypTargetDir: unable to read juddi " + dir + " directory");
-        return;
-      }
-
-      File []ypTargetFiles = ypTargetDir.listFiles();
-      for (int index = 0; index < ypTargetFiles.length; index++) {
-        File ypTargetFile = ypTargetFiles[index];
-        if (ypTargetFile.isFile()) {
-          BufferedReader in =
-            new BufferedReader(new FileReader(ypTargetFile));
-
-          BufferedWriter out =
-            new BufferedWriter(new FileWriter(new File(newDir, ypTargetFile.getName())));
-          String inLine;
-          while ((inLine = in.readLine()) != null) {
-            out.write(inLine);
-            out.newLine();
-          }
-
-          in.close();
-          out.close();
-        }
+      
+      File []ypSourceFiles = ypSourceDir.listFiles();
+      for (int index = 0; index < ypSourceFiles.length; index++) {
+	File ypSourceFile = ypSourceFiles[index];
+	if (ypSourceFile.isFile()) {
+	  BufferedReader in =
+	    new BufferedReader(new FileReader(ypSourceFile));
+	  
+	  BufferedWriter out =
+	    new BufferedWriter(new FileWriter(new File(newDir, ypSourceFile.getName())));
+	  String inLine;
+	  while ((inLine = in.readLine()) != null) {
+	    out.write(inLine);
+	    out.newLine();
+	  }
+	  
+	  in.close();
+	  out.close();
+	}
       }
     } catch (FileNotFoundException fnfe) {
-      fnfe.printStackTrace();
-      logger.fatal("copyFiles: error copying " + dir + " files.");
+      logger.fatal("copyFiles: error copying " + ypSourceDir.getPath() + 
+		   " files.", fnfe);
     } catch (IOException ioe) {
-      ioe.printStackTrace();
-      logger.fatal("copyFiles: error copying " + dir + " files.");
+      logger.fatal("copyFiles: error copying " + ypSourceDir.getPath() + 
+		   " files.", ioe);
     }
   }
 
   void initDB() {
-    copyFiles("conf");
+    Config.dbTag.set(originMA.toString());
+    String configDir = org.juddi.util.Config.getConfigDir();
+    copyFiles("conf", configDir);
     synchronized (databaseLocker) {
       if (databaseEnvelope!=null) { // rehydrate!
         try {
@@ -489,7 +477,8 @@ public class YPServer extends ComponentSupport {
       }
       
       // no successful recovery, so we'll have to start over
-      copyFiles("hsql", originMA.toString());
+      String hsqlDir = org.juddi.datastore.jdbc.HSQLDataStoreFactory.getURL();
+      copyFiles("hsql", dbDirectory.getPath());
       snapshotDatabase();     // take a snapshot immediately
     }
     //hack();
