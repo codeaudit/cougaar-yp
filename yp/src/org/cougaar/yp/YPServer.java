@@ -21,11 +21,17 @@
 
 package org.cougaar.yp;
 
+import org.uddi4j.UDDIElement;
 import org.uddi4j.client.*;
 import org.uddi4j.transport.*;
 
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
+import org.w3c.dom.Element;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
 
 import java.io.*;
 import java.net.*;
@@ -38,14 +44,23 @@ import org.cougaar.core.component.*;
 import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
+import org.cougaar.util.ConfigFinder;
 
 // database connection support
 import java.sql.*;
 
 // soaduddi imports
-import com.induslogic.uddi.server.service.*;
-import com.induslogic.uddi.server.util.*;
-import com.induslogic.uddi.*;
+//import com.induslogic.uddi.server.service.*;
+//import com.induslogic.uddi.server.util.*;
+//import com.induslogic.uddi.*;
+
+// juddi imports
+import org.juddi.datastore.jdbc.CreateDatabase;
+import org.juddi.datastore.jdbc.HSQLDataStoreFactory;
+import org.juddi.service.ServiceFactory;
+import org.juddi.service.UDDIService;
+import org.juddi.transport.axis.RequestFactory;
+
 
 /**
  * This is the basic in-memory YP Server component.
@@ -55,7 +70,13 @@ import com.induslogic.uddi.*;
 
 public class YPServer extends ComponentSupport {
   private static final Logger logger = Logging.getLogger(YPServer.class);
-  
+
+  // create an XML document builder factory
+  private static DocumentBuilderFactory documentBuilderFactory = 
+    DocumentBuilderFactory.newInstance();
+
+  private DocumentBuilder builder = 
+    documentBuilderFactory.newDocumentBuilder();
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
 
@@ -85,149 +106,98 @@ public class YPServer extends ComponentSupport {
   }
 
   private synchronized void dispatchQuery(YPQueryMessage r) {
-    logger.debug("\n\n\n\n dispatchQuery: query - " + r.getKey() + " " + 
-		 r.getElement());
+    if (logger.isDebugEnabled()) {
+      logger.debug("\n\n\n\n dispatchQuery: query - " + r.getKey() + " " + 
+		  r.getElement());
+    }
+
     Object key = r.getKey();
     Element qel = r.getElement();
     Element rel = null;
     boolean isInquiry = r.isInquiry();
     rel = executeQuery(qel);
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
-    logger.debug("dispatchQuery: response - " + m);
+    
+    if (logger.isDebugEnabled()) {
+      logger.debug("dispatchQuery: response - " + m);
+    }
     sendMessage(m);
   }
 
   protected void sendMessage(Message m) {
     mss.sendMessage(m);
   }
-
-  public static final String DB_DRIVER = "org.hsqldb.jdbcDriver";
   //public static final String DB_URL = "jdbc:hsqldb:.";
   public static final String DB_FILE = "foodb";
   public static final String DB_URL = "jdbc:hsqldb:"+DB_FILE;
+  public static final String DB_DRIVER = "org.hsqldb.jdbcDriver";
   public static final String DB_USER = "sa";
   public static final String DB_PASS = "";
 
-  private Connection theConnection = null;
-
-  void executeSQL(Connection c, String sql) throws SQLException {
-    Statement s = c.createStatement();
-    s.execute(sql);
-  }
-
   Element executeQuery(Element qel) {
-    int exceptCount = 0;
-
-    while (theConnection == null) {
-      try {
-	theConnection = getDBConnection();
-      } catch (Exception e) {
-	if (exceptCount++ > 10) {
-	  e.printStackTrace();
-	  return null;
-	} else { 
-	  try {
-            Thread.sleep(3000);
-	  } catch (Exception se) {}
-	}
-      }
-    }
 	
     try {
-      String apiName = qel.getNodeName();
-      UddiObject param = new UddiObject(qel);
+      if (logger.isDebugEnabled()) {
+	logger.debug("executeQuery: query -");
+	describeElement(qel);
+      }
 
-      UddiService uService = new UddiService(theConnection);
-      UddiObject obj = uService.invokeAppropriateApi(apiName, param);
+      Document document = builder.newDocument();
+      Element holder = document.createElement("holder");
+      document.appendChild(holder);  // holder element is thrown away
+      Element response = document.getDocumentElement();
 
-      //theConnection.close();
-      //theConnection = null;
+      UDDIElement request = (UDDIElement) RequestFactory.getRequest(qel);
+      UDDIService uService = ServiceFactory.getService(request.getClass().getName());
       
-      logger.debug("executeQuery: return " + obj.getElement());
+      uService.invoke(request).saveToXML(response);
 
-      return obj.getElement();
+      if (logger.isDebugEnabled()) {
+	logger.debug("executeQuery: returned -");
+	describeElement(response);
+      }
+
+      return (Element) response.getChildNodes().item(0);
 
       } catch (Exception e) {
-        try {
-          if (theConnection != null) {
-            //theConnection.rollback();
-            //theConnection.close();
-            //theConnection = null;
-          }
-        }
-        catch ( Exception e1){
-          e1.printStackTrace();
-        }
         e.printStackTrace();
         return null;
     } 
   }
   
-
-  Connection getDBConnection()
-    throws SQLException, ClassNotFoundException, IOException
-  {
-    // should self-register the driver
-    Class.forName(DB_DRIVER);   // ugly
-    String url = DB_URL;
-    String user = null;
-    String passwd = null;
-    return DriverManager.getConnection(url, DB_USER, DB_PASS);
+  static void describeElement(Node el) { describeElement(el,""); }
+  static void describeElement(Node el,String prefix) { 
+    System.out.println(prefix+el);
+    String pn = prefix+" ";
+    if (el.hasChildNodes()) {
+      for (Node c = el.getFirstChild(); c!= null; c = c.getNextSibling()) {
+        describeElement(c, pn);
+      }
+    }
   }
 
-
   void initDB() {
+    Connection connection = null;
+
     try {
-      File f = new File(DB_FILE+".data");
-      if (f.exists()) {
-        f.delete();
-      }
+      connection = (new org.juddi.datastore.jdbc.HSQLDataStoreFactory()).getConnection();
+
+      CreateDatabase.dropDatabase(connection);
+      CreateDatabase.createDatabase(connection);
       
-      f = new File(DB_FILE+".properties");
-      if (f.exists()) {
-        f.delete();
-      }
-
-      f = new File(DB_FILE+".script");
-      if (f.exists()) {
-        f.delete();
-      }
-    } catch (Exception e) {}
-
-    try {
-      theConnection = getDBConnection();
-      executeSQL(theConnection, CT_1);
-      executeSQL(theConnection, CT_1a);
-      executeSQL(theConnection, CT_2);
-      executeSQL(theConnection, CT_3);
-      executeSQL(theConnection, CT_4);
-      executeSQL(theConnection, CT_5);
-      executeSQL(theConnection, CT_6);
-      executeSQL(theConnection, CT_7);
-      executeSQL(theConnection, CT_8);
-      executeSQL(theConnection, CT_9);
-      executeSQL(theConnection, CT_10);
-      executeSQL(theConnection, CT_11);
-      executeSQL(theConnection, CT_12);
-      executeSQL(theConnection, CT_13);
-      executeSQL(theConnection, CT_14);
-
-      //theConnection.commit();
-      //theConnection.close();
-      //theConnection = null;
+      
     } catch (Exception e) {
-      try {
-        if (theConnection != null) {
-          //theConnection.rollback();
-          //theConnection.close();
-          //theConnection = null;
-        }
-      } catch ( Exception e1){
-        e1.printStackTrace();
-      }
-      
+      logger.error("Exception creating UDDI tables in the HSQL database.");
       e.printStackTrace();
-    } 
+    } finally {
+      try {
+	if (connection != null) {
+	  connection.close();
+	}
+      } catch(SQLException sqlex) {
+        sqlex.printStackTrace();
+      }
+    }
   }
 
   void initUDDI() {
@@ -240,54 +210,8 @@ public class YPServer extends ComponentSupport {
     props.setProperty("Class", DB_DRIVER);
     props.setProperty("URL", DB_URL);
 
-    com.induslogic.uddi.server.util.GlobalProperties.loadProperties(props);
+    //com.induslogic.uddi.server.util.GlobalProperties.loadProperties(props);
   }
-
-  private final static String CT_1 = "CREATE TABLE passwords ( uddi_userid varchar (50)  , uddi_password varchar (50)  , CONSTRAINT PK_passwords PRIMARY KEY ( uddi_userid ) ) ";
-
-  private final static String CT_1a = "INSERT into passwords values ('cougaar','cougaarPass')";
-
-  private final static String CT_2 = "CREATE TABLE authentiTokens ( uddi_userid varchar (50)  , uddi_keys varchar (50)  , uddi_validTill varchar (50)  , CONSTRAINT PK_authentiTokens PRIMARY KEY ( uddi_userid ) , CONSTRAINT FK_aT_passwords FOREIGN KEY ( uddi_userid ) REFERENCES passwords ( uddi_userid ) ) ";
-
-
-  private final static String CT_3 = "CREATE TABLE TModelDetails ( uddi_tmodelkey varchar (50)  , uddi_authorizedname varchar (50)  , uddi_keyname varchar (64)  , uddi_overview varchar (128)  , uddi_userid varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT PK_TModelDetails PRIMARY KEY ( uddi_tmodelkey ) , CONSTRAINT FK_TMD_passwords FOREIGN KEY ( uddi_userid ) REFERENCES passwords ( uddi_userid ) ) ";
-
-
-  private final static String CT_4 = "CREATE TABLE BusinessDetails ( uddi_businesskey varchar (50)  , uddi_authorizedname varchar (128)  , uddi_operator varchar (50)  , uddi_name varchar (128)  , uddi_userid varchar (50)  , CONSTRAINT PK_BusinessDetails PRIMARY KEY ( uddi_businesskey )  , CONSTRAINT FK_BD_passwords FOREIGN KEY ( uddi_userid ) REFERENCES passwords ( uddi_userid ) ) ";
-
-
-  private final static String CT_5 = "CREATE TABLE BusinessService ( uddi_servicekey varchar (50)  , uddi_businesskey varchar (50)  , uddi_servicename varchar (40)  , CONSTRAINT PK_BusinessService PRIMARY KEY ( uddi_servicekey )  , CONSTRAINT FK_BS_BD FOREIGN KEY ( uddi_businesskey ) REFERENCES BusinessDetails ( uddi_businesskey ) ) ";
-
-
-  private final static String CT_6 = "CREATE TABLE BindingTemplate ( uddi_bindingkey varchar (50)  , uddi_servicekey varchar (50)  , uddi_accesspoint varchar (255)  , uddi_servicetype varchar (20)  , uddi_hostingRedirector varchar (50), CONSTRAINT PK_BindingTemplate PRIMARY KEY ( uddi_bindingkey )  , CONSTRAINT FK_BT_BS FOREIGN KEY ( uddi_servicekey ) REFERENCES BusinessService ( uddi_servicekey ) ) ";
-
-  /*
-  private final static String CT_7 = "CREATE TABLE CategoryBag ( uddi_key varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_Keyname varchar (255)  , uddi_Keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT PK_CategoryBag PRIMARY KEY ( uddi_key, uddi_tmodelkey ) , CONSTRAINT FK_CB_BD FOREIGN KEY ( uddi_key ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_CB_BS FOREIGN KEY ( uddi_key ) REFERENCES BusinessService ( uddi_servicekey ) , CONSTRAINT FK_CB_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-  */
-
-  
-  private final static String CT_7 = "CREATE TABLE CategoryBag ( uddi_key varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_Keyname varchar (255)  , uddi_Keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_CB_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-
-  private final static String CT_8 = "CREATE TABLE Contacts ( uddi_businesskey varchar (50)  , uddi_personname varchar (32)  , uddi_phoneusetype varchar (50)  , uddi_phone varchar (50)  , uddi_emailusetype varchar (50)  , uddi_email varchar (128)  , uddi_address varchar (255)  , CONSTRAINT PK_Contacts PRIMARY KEY ( uddi_businesskey ) , CONSTRAINT FK_C_BD FOREIGN KEY ( uddi_businesskey ) REFERENCES BusinessDetails ( uddi_businesskey ) ) ";
-
-
-  private final static String CT_9 = "CREATE TABLE DiscoveryURLs ( uddi_businesskey varchar (50)  , uddi_discoveryURL varchar (255)  , uddi_usetype varchar (20) , CONSTRAINT FK_DURL_BD FOREIGN KEY ( uddi_businesskey ) REFERENCES BusinessDetails ( uddi_businesskey ) ) ";
-
-  /*
-  private final static String CT_10 = "CREATE TABLE IdentifierBag ( uddi_key varchar (50)  , uddi_keyname varchar (50)  , uddi_keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_IB_BD FOREIGN KEY ( uddi_key ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_IB_TMD FOREIGN KEY ( uddi_key ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-  */
-
-  private final static String CT_10 = "CREATE TABLE IdentifierBag ( uddi_key varchar (50)  , uddi_keyname varchar (50)  , uddi_keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_IB_TMD FOREIGN KEY ( uddi_key ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-
-
-  private final static String CT_11 = "CREATE TABLE InstanceDetails ( uddi_bindingkey varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_overViewUrl varchar (50)  , uddi_instanceParms varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_ID_BT FOREIGN KEY ( uddi_bindingkey ) REFERENCES BindingTemplate ( uddi_bindingkey ), CONSTRAINT FK_ID_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-
-  private final static String CT_12 = "CREATE TABLE Descriptions ( uddi_key varchar (50)  , uddi_description varchar (255)  , uddi_lang varchar (50) ) ";
-
-  private final static String CT_13 = "CREATE TABLE overviewDescriptions ( uddi_key varchar (50)  , uddi_description varchar (255)  , uddi_lang varchar (50) ) ";
-
-  private final static String CT_14 = "CREATE TABLE instanceDetailDescriptions ( uddi_bindingkey varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_descType varchar (50)  , uddi_description varchar (255)  , uddi_lang varchar (50) ) ";
-
 }
 
 
