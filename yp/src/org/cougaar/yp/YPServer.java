@@ -75,10 +75,18 @@ public class YPServer extends ComponentSupport {
   private static DocumentBuilderFactory documentBuilderFactory = 
     DocumentBuilderFactory.newInstance();
 
-  private DocumentBuilder builder = 
-    documentBuilderFactory.newDocumentBuilder();
+  private DocumentBuilder builder;
+
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
+
+  public YPServer() {
+    try {
+      builder = documentBuilderFactory.newDocumentBuilder();
+    } catch (javax.xml.parsers.ParserConfigurationException e) {
+      throw new RuntimeException("Failed to create DocumentBuilder", e);
+    }
+  }
 
   public void initialize() {
     super.initialize();
