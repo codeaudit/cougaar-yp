@@ -84,6 +84,7 @@ public class YPServer extends ComponentSupport {
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
   private AgentIdentificationService agentIdentificationService;
+  private String dbName;
 
   private DocumentBuilder getBuilder() {
     if (builder == null) {
@@ -187,7 +188,7 @@ public class YPServer extends ComponentSupport {
 		  " dropping database connection for persistence snapshot" );
     }
     
-    Config.dbTag.set(originMA.toString());
+    Config.dbTag.set(dbName);
     org.juddi.datastore.jdbc.HSQLDataStoreFactory.closeConnection();
 
     getServiceBroker().releaseService(this, AgentIdentificationService.class, 
@@ -266,7 +267,7 @@ public class YPServer extends ComponentSupport {
   private void startServiceThread() {
     serviceThread = new ServiceThread( new ServiceThread.Callback() {
         public void dispatch(Message m) {
-	  Config.dbTag.set(originMA.toString());
+	  Config.dbTag.set(dbName);
           dispatchQuery((YPQueryMessage)m);
         }},
                                        logger,
@@ -458,8 +459,10 @@ public class YPServer extends ComponentSupport {
 
   void initDB() {
     String juddiHomeDirProperty  = System.getProperty("juddi.homeDir", "");    
-    
-    File juddiHomeDir = new File(juddiHomeDirProperty, originMA.toString());
+    long timestamp = System.currentTimeMillis();
+    dbName = originMA.toString()+ "@" + timestamp;
+
+    File juddiHomeDir = new File(juddiHomeDirProperty, dbName);
     if(!juddiHomeDir.isDirectory()) {
       if (!juddiHomeDir.mkdirs()) {
 	logger.fatal("Unable to access jUDDI home directory " + 
@@ -479,7 +482,7 @@ public class YPServer extends ComponentSupport {
 
     copyFiles("conf", confDir.toString());
 
-    Config.dbTag.set(originMA.toString());
+    Config.dbTag.set(dbName);
     if (logger.isDebugEnabled()) {
       // verify that we agree with juddi on home and config directories
       logger.debug(originMA.toString() + ": juddi home = " + Config.getHomeDir() + 
