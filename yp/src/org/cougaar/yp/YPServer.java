@@ -40,6 +40,8 @@ import java.util.Properties;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+
+import org.cougaar.core.agent.service.alarm.Alarm;
 import org.cougaar.core.agent.service.MessageSwitchService;
 import org.cougaar.core.component.ComponentSupport;
 import org.cougaar.core.component.ServiceBroker;
@@ -50,22 +52,24 @@ import org.cougaar.core.persist.PersistenceClient;
 import org.cougaar.core.persist.PersistenceIdentity;
 import org.cougaar.core.persist.PersistenceService;
 import org.cougaar.core.persist.RehydrationData;
-import org.cougaar.core.service.AgentIdentificationService;
+import org.cougaar.core.service.AlarmService;
 import org.cougaar.core.service.ThreadService;
 import org.cougaar.util.log.Logger;
 import org.cougaar.util.log.Logging;
+import org.cougaar.util.TimeSpan;
+
 import org.juddi.error.JUDDIException;
 import org.juddi.service.ServiceFactory;
 import org.juddi.service.UDDIService;
 import org.juddi.transport.axis.RequestFactory;
 import org.juddi.util.Config;
+
 import org.uddi4j.UDDIElement;
 import org.uddi4j.response.DispositionReport;
+
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-
-
 
 /**
  * This is the basic in-memory YP Server component.
@@ -80,11 +84,24 @@ public class YPServer extends ComponentSupport {
   private static DocumentBuilderFactory documentBuilderFactory =
     DocumentBuilderFactory.newInstance();
 
+  private static long UNUSED_DBCONNECTION_TIMEOUT = 10; // in minutes
+  private static final String UNUSED_DBCONNECTION_TIMEOUT_PROPERTY =
+  "org.cougaar.yp.UnusedDBConnectionInterval";
+  private static final long MILLI_PER_MINUTE = (60 * 1000);
+
+  static {
+    UNUSED_DBCONNECTION_TIMEOUT = MILLI_PER_MINUTE * 
+      Integer.getInteger(UNUSED_DBCONNECTION_TIMEOUT_PROPERTY,
+			 (int) UNUSED_DBCONNECTION_TIMEOUT).longValue();
+  }
+
   private DocumentBuilder builder;
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
-  private AgentIdentificationService agentIdentificationService;
   private String dbName;
+
+  private long lastMessageTime = TimeSpan.MIN_VALUE;
+  private Alarm timerAlarm = null;
 
   private DocumentBuilder getBuilder() {
     if (builder == null) {
@@ -95,6 +112,16 @@ public class YPServer extends ComponentSupport {
       }
     }
     return builder;
+  }
+
+  /** alarm service for closing unused connections
+  **/
+  private AlarmService alarmService;
+  public void setAlarmService(AlarmService as) { 
+    this.alarmService = as;
+  }
+  protected final AlarmService getAlarmService() {
+    return alarmService;
   }
 
   /** threading service for launching our service thread, set by introspection **/
@@ -191,8 +218,12 @@ public class YPServer extends ComponentSupport {
     Config.dbTag.set(dbName);
     org.juddi.datastore.jdbc.HSQLDataStoreFactory.closeConnection();
 
-    getServiceBroker().releaseService(this, AgentIdentificationService.class, 
-				      agentIdentificationService);
+    if (timerAlarm != null) {
+      if (logger.isInfoEnabled()) {
+	logger.info("suspend -  cancelling timerAlarm.");
+      }
+      timerAlarm.cancel();
+    }
 
     getServiceBroker().releaseService(this, MessageSwitchService.class, 
 				      mss);
@@ -265,18 +296,109 @@ public class YPServer extends ComponentSupport {
 
   private ServiceThread serviceThread = null;
   private void startServiceThread() {
-    serviceThread = new ServiceThread( new ServiceThread.Callback() {
-        public void dispatch(Message m) {
-	  Config.dbTag.set(dbName);
-          dispatchQuery((YPQueryMessage)m);
-        }},
-                                       logger,
-                                       "YPServer("+originMA+")");
+    serviceThread = new ServiceThread(new ServiceThread.Callback() {
+      public void dispatch(Message m) {
+	if (logger.isDebugEnabled()) {
+	  ThreadGroup threadGroup = Thread.currentThread().getThreadGroup();
+	  Thread threads[] = new Thread[threadGroup.activeCount()];
+	  threadGroup.enumerate(threads);
+	  logger.debug(originMA + " thread count before dispatch = " + 
+		       threadGroup.activeCount());
+	  for (int index = 0; index < threads.length; index++) {
+	    Thread thread = threads[index];
+	    if (thread == null) {
+	      logger.debug("\t thread = " + null);
+	    } else if (!thread.getName().startsWith("CougaarPooledThread")) {
+	      logger.debug("\t name = " + thread.getName() + 
+			   " threadGroup = " + thread.getThreadGroup() +
+			   " class = " + thread.getClass() + 
+			   " " + thread);
+	    }
+	  }
+	}
+
+	lastMessageTime = System.currentTimeMillis();	
+	startTimer();
+
+	Config.dbTag.set(dbName);
+	dispatchQuery((YPQueryMessage)m);
+
+      }},
+      logger,
+      "YPServer("+originMA+")");
     serviceThread.start(threadService);
   }
 
   protected ServiceThread getServiceThread() {
     return serviceThread;
+  }
+
+
+  //
+  // Timer - close unused db connection
+  //
+
+  private void startTimer() {
+    if ((timerAlarm == null) || (timerAlarm.hasExpired())) {
+      timerAlarm =
+	new TimerAlarm(System.currentTimeMillis() + 
+		       UNUSED_DBCONNECTION_TIMEOUT);
+
+      if (logger.isDebugEnabled()) {
+	logger.debug("startTimer() - adding new TimerAlarm " + timerAlarm);
+      }
+      getAlarmService().addRealTimeAlarm(timerAlarm);
+    } else if (logger.isDebugEnabled()) {
+      logger.debug("startTimer() - ignoring request. " +
+		   "Active TimerAlarm already exists " + timerAlarm +
+		   "currentTimeMillis() = " + System.currentTimeMillis() +
+		   " disconnect timeout = " + UNUSED_DBCONNECTION_TIMEOUT);
+    }
+  }
+
+  public class TimerAlarm implements Alarm {
+    private long expiresAt;
+    private boolean expired = false;
+    public TimerAlarm (long expirationTime) {
+      expiresAt = expirationTime;
+    }
+    public long getExpirationTime() { return expiresAt; }
+    public synchronized void expire() {
+      if (!expired) {
+        expired = true;
+
+	if (lastMessageTime < 
+	    (System.currentTimeMillis() - 
+	     UNUSED_DBCONNECTION_TIMEOUT)) {
+	  if (logger.isDebugEnabled()) {
+	    logger.debug("expire() - closing connection, lastMessageTime = " +
+			 lastMessageTime + 
+			 " expired alarm = " + this);
+	  }
+	  Config.dbTag.set(dbName);
+	  org.juddi.datastore.jdbc.HSQLDataStoreFactory.closeConnection();
+	} else {
+	  if (logger.isDebugEnabled()) {
+	    logger.debug("expire() - leaving connection open, lastMessageTime = " +
+			 lastMessageTime + 
+			 " expired alarm = " + this);
+	  }
+	  startTimer();
+	}
+      }
+    }
+
+    public boolean hasExpired() { return expired; }
+    public synchronized boolean cancel() {
+      boolean was = expired;
+      expired = true;
+      return was;
+    }
+    public String toString() {
+      return "<TimerAlarm " + expiresAt +
+        (expired ? "(Expired) " : " ") +
+        "for YPServer at " + originMA + ">";
+    }
   }
 
   private int rc = 0;
@@ -306,7 +428,6 @@ public class YPServer extends ComponentSupport {
     }
     sendMessage(m);
     rc++;
-    //System.err.println("YPServer RES="+rc);
   }
 
   protected void sendMessage(Message m) {
