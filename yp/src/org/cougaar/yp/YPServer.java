@@ -64,12 +64,13 @@ public class YPServer extends ComponentSupport {
 
     initUDDI();
     initDB();
-
+    
     // this should probably go into load
 
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
         public boolean handleMessage(Message message) {
+	  logger.debug("\n\n\n handleMessage: " + message.getClass());
           if (message instanceof YPQueryMessage) {
             dispatchQuery((YPQueryMessage) message);
             return true;
@@ -83,7 +84,9 @@ public class YPServer extends ComponentSupport {
     originMA = mss.getMessageAddress();
   }
 
-  private void dispatchQuery(YPQueryMessage r) {
+  private synchronized void dispatchQuery(YPQueryMessage r) {
+    logger.debug("\n\n\n\n dispatchQuery: query - " + r.getKey() + " " + 
+		 r.getElement());
     Object key = r.getKey();
     Element qel = r.getElement();
     Element rel = null;
@@ -91,6 +94,7 @@ public class YPServer extends ComponentSupport {
     rel = executeQuery(qel);
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
     sendMessage(m);
+    logger.warn("dispatchQuery: response - " + m);
   }
 
   protected void sendMessage(Message m) {
@@ -113,9 +117,24 @@ public class YPServer extends ComponentSupport {
 
   Element executeQuery(Element qel) {
     Connection con = null;
-    try {
-      con = getDBConnection();
+    int exceptCount = 0;
 
+    while (con == null) {
+      try {
+	con = getDBConnection();
+      } catch (Exception e) {
+	if (exceptCount++ > 10) {
+	  e.printStackTrace();
+	  return null;
+	} else { 
+	  try {
+            Thread.sleep(3000);
+	  } catch (Exception se) {}
+	}
+      }
+    }
+	
+    try {
       String apiName = qel.getNodeName();
       UddiObject param = new UddiObject(qel);
 
@@ -130,7 +149,7 @@ public class YPServer extends ComponentSupport {
         try {
           if (con != null) {
             //con.rollback();
-            //con.close();
+            con.close();
           }
         }
         catch ( Exception e1){
@@ -170,8 +189,16 @@ public class YPServer extends ComponentSupport {
       File f = new File(DB_FILE+".data");
       if (f.exists()) {
         f.delete();
-        new File(DB_FILE+".properties").delete();
-        new File(DB_FILE+".script").delete();
+      }
+      
+      f = new File(DB_FILE+".properties");
+      if (f.exists()) {
+        f.delete();
+      }
+
+      f = new File(DB_FILE+".script");
+      if (f.exists()) {
+        f.delete();
       }
     } catch (Exception e) {}
 
@@ -241,17 +268,23 @@ public class YPServer extends ComponentSupport {
 
   private final static String CT_6 = "CREATE TABLE BindingTemplate ( uddi_bindingkey varchar (50)  , uddi_servicekey varchar (50)  , uddi_accesspoint varchar (255)  , uddi_servicetype varchar (20)  , uddi_hostingRedirector varchar (50), CONSTRAINT PK_BindingTemplate PRIMARY KEY ( uddi_bindingkey )  , CONSTRAINT FK_BT_BS FOREIGN KEY ( uddi_servicekey ) REFERENCES BusinessService ( uddi_servicekey ) ) ";
 
+  /*
+  private final static String CT_7 = "CREATE TABLE CategoryBag ( uddi_key varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_Keyname varchar (255)  , uddi_Keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT PK_CategoryBag PRIMARY KEY ( uddi_key, uddi_tmodelkey ) , CONSTRAINT FK_CB_BD FOREIGN KEY ( uddi_key ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_CB_BS FOREIGN KEY ( uddi_key ) REFERENCES BusinessService ( uddi_servicekey ) , CONSTRAINT FK_CB_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
+  */
 
-  private final static String CT_7 = "CREATE TABLE CategoryBag ( uddi_keys varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_Keyname varchar (255)  , uddi_Keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT PK_CategoryBag PRIMARY KEY ( uddi_keys, uddi_tmodelkey ) , CONSTRAINT FK_CB_BD FOREIGN KEY ( uddi_keys ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_CB_BS FOREIGN KEY ( uddi_keys ) REFERENCES BusinessService ( uddi_servicekey ) , CONSTRAINT FK_CB_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
-
+  
+  private final static String CT_7 = "CREATE TABLE CategoryBag ( uddi_key varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_Keyname varchar (255)  , uddi_Keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_CB_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
 
   private final static String CT_8 = "CREATE TABLE Contacts ( uddi_businesskey varchar (50)  , uddi_personname varchar (32)  , uddi_phoneusetype varchar (50)  , uddi_phone varchar (50)  , uddi_emailusetype varchar (50)  , uddi_email varchar (128)  , uddi_address varchar (255)  , CONSTRAINT PK_Contacts PRIMARY KEY ( uddi_businesskey ) , CONSTRAINT FK_C_BD FOREIGN KEY ( uddi_businesskey ) REFERENCES BusinessDetails ( uddi_businesskey ) ) ";
 
 
   private final static String CT_9 = "CREATE TABLE DiscoveryURLs ( uddi_businesskey varchar (50)  , uddi_discoveryURL varchar (255)  , uddi_usetype varchar (20) , CONSTRAINT FK_DURL_BD FOREIGN KEY ( uddi_businesskey ) REFERENCES BusinessDetails ( uddi_businesskey ) ) ";
 
+  /*
+  private final static String CT_10 = "CREATE TABLE IdentifierBag ( uddi_key varchar (50)  , uddi_keyname varchar (50)  , uddi_keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_IB_BD FOREIGN KEY ( uddi_key ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_IB_TMD FOREIGN KEY ( uddi_key ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
+  */
 
-  private final static String CT_10 = "CREATE TABLE IdentifierBag ( uddi_Keys varchar (50)  , uddi_keyname varchar (50)  , uddi_keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_IB_BD FOREIGN KEY ( uddi_Keys ) REFERENCES BusinessDetails ( uddi_businesskey ) , CONSTRAINT FK_IB_TMD FOREIGN KEY ( uddi_Keys ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
+  private final static String CT_10 = "CREATE TABLE IdentifierBag ( uddi_key varchar (50)  , uddi_keyname varchar (50)  , uddi_keyvalue varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_IB_TMD FOREIGN KEY ( uddi_key ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
 
 
   private final static String CT_11 = "CREATE TABLE InstanceDetails ( uddi_bindingkey varchar (50)  , uddi_tmodelkey varchar (50)  , uddi_overViewUrl varchar (50)  , uddi_instanceParms varchar (50)  , uddi_isHidden bit NOT NULL , CONSTRAINT FK_ID_BT FOREIGN KEY ( uddi_bindingkey ) REFERENCES BindingTemplate ( uddi_bindingkey ), CONSTRAINT FK_ID_TMD FOREIGN KEY ( uddi_tmodelkey ) REFERENCES TModelDetails ( uddi_tmodelkey ) ) ";
@@ -284,6 +317,7 @@ public class YPServer extends ComponentSupport {
       // cannot happen
     }
 
+
     new YPTest().test(proxy);
   }
   
@@ -294,10 +328,10 @@ public class YPServer extends ComponentSupport {
     }
     /** Send the DOM element specified to the URL as interpreted by the MTS **/
     public Element send(Element el, java.net.URL url) throws TransportException {
-      logger.warn("Transported query "+el);
+      logger.debug("Transported query "+el);
       describeElement(el);
       Element resp = yp.executeQuery(serialize(el));
-      logger.warn("Sending Response "+resp);
+      logger.debug("Sending Response "+resp);
       describeElement(resp);
       return serialize(resp);
     }
@@ -319,3 +353,7 @@ public class YPServer extends ComponentSupport {
     }
   }
 }
+
+
+
+
