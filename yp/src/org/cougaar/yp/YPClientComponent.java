@@ -121,9 +121,11 @@ public class YPClientComponent extends ComponentSupport {
   private class YPServiceImpl implements YPService {
     /** Get a UDDIProxy for YP Queryies **/
     public YPProxy getYP(String context) {
-      return new YPProxyImpl(context);
+      return new YPProxyImpl(context, this, false);
     }
-
+    public YPProxy getAutoYP(String context) {
+      return new YPProxyImpl(context, this, true);
+    }
     public YPFuture submit(YPFuture r) {
       try {
         YPClientComponent.this.submit(r);
@@ -273,6 +275,7 @@ public class YPClientComponent extends ComponentSupport {
   /** Submit a request.
    */
   void submit(YPFuture r) throws TransportException {
+    ((YPFutureImpl) r).submitted();
     track(r, r.getInitialContext());
   }
 

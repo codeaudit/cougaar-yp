@@ -24,11 +24,23 @@ package org.cougaar.yp;
 import org.cougaar.core.component.Service;
 
 public interface YPService extends Service {
-  /** Get a Proxy for YP Queries in a specific context.  
+  /** Get a Proxy for YP Queries in a specific context.  Typically, you would
+   * invoke a method on the returned YPProxy, publish the resulting YPFuture to the
+   * blackboard, and wait until the future has been publishChanged to get the value.
    * @param context The context is a name to be looked up in the WP.  If null, will default
    * to the set of communities this agent is a member of.
    **/
   YPProxy getYP(String context);
+
+  /** List #getYP(String), except submits the request before returning the 
+   * YPFuture value.  This is a convenient mechanism if you do not have access
+   * to a blackboard for blackboard-based publish/subscribe of YPFuture requests.
+   * Keep in mind that the YPFuture values returned are still <em>futures</em>, e.g. a call to get()
+   * will block until the answer has been recieved.
+   * @note Access to this method is likely to be more tightly constrained by security
+   * mechanisms, as it is easier to write broken code using this mechanism.
+   */
+  YPProxy getAutoYP(String context);
 
   /** Submit a YPFuture to be transmitted.
    * @note This method is only for use by clients which can afford to block their thread - 

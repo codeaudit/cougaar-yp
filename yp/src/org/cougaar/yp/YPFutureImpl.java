@@ -64,6 +64,7 @@ final class YPFutureImpl implements YPFuture, Persistable {
   private Callback callback = null;
   private String finalContext = null;
   private Class resultClass;
+  private boolean isSubmitted = false;
 
   YPFutureImpl(String context, Element e, boolean qp, Class resultClass) {
     this.initialContext = context;
@@ -120,7 +121,6 @@ final class YPFutureImpl implements YPFuture, Persistable {
     return finalContext;
   }
 
-
   // package-private setters
   void set(Object value) {
     synchronized (this) {
@@ -141,6 +141,13 @@ final class YPFutureImpl implements YPFuture, Persistable {
 
   void setFinalContext(String fc) {
     finalContext = fc;
+  }
+  
+  synchronized void submitted() {
+    if (isSubmitted) {
+      throw new IllegalArgumentException("YPFuture was previously submitted");
+    }
+    isSubmitted = true;
   }
 
   private static final Class[] cargs = new Class[] { Element.class };

@@ -88,7 +88,7 @@ public class YPTest extends ComponentSupport {
 
     String context = arg;
 
-    YPProxy proxy = yps.getYP(context);
+    YPProxy proxy = yps.getAutoYP(context);
 
     test(proxy);
     System.err.println("YPTest done.");
@@ -118,7 +118,7 @@ public class YPTest extends ComponentSupport {
       System.out.println("\nGet authtoken");
 
       // Pass in userid and password registered at the UDDI site
-      AuthToken token = (AuthToken) yps.submit(proxy.get_authToken(user, pass)).get();
+      AuthToken token = (AuthToken) proxy.get_authToken(user, pass).get();
 
       System.out.println("Returned authToken:" + token.getAuthInfoString());
 
@@ -134,7 +134,7 @@ public class YPTest extends ComponentSupport {
       entities.addElement(be);
 
       // Save business
-      BusinessDetail bd = (BusinessDetail) yps.submit(proxy.save_business(token.getAuthInfoString(),entities)).get();
+      BusinessDetail bd = (BusinessDetail) proxy.save_business(token.getAuthInfoString(),entities).get();
 
       // Process returned BusinessDetail object
       Vector businessEntities = bd.getBusinessEntityVector();
@@ -158,7 +158,7 @@ public class YPTest extends ComponentSupport {
 
       // Find businesses by name
       // And setting the maximum rows to be returned as 5.
-      BusinessList businessList = (BusinessList) yps.submit(proxy.find_business(names, null, null, null,null,findQualifiers,5)).get();
+      BusinessList businessList = (BusinessList) proxy.find_business(names, null, null, null,null,findQualifiers,5).get();
 
       Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
       for (int i = 0; i < businessInfoVector.size(); i++) {
@@ -186,7 +186,7 @@ public class YPTest extends ComponentSupport {
 
       // Find businesses by name
       // And setting the maximum rows to be returned as 5.
-      BusinessList businessList = (BusinessList) yps.submit(proxy.find_business(names, null, null, null,null,findQualifiers,5)).get();
+      BusinessList businessList = (BusinessList) proxy.find_business(names, null, null, null,null,findQualifiers,5).get();
 
       Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
       for (int i = 0; i < businessInfoVector.size(); i++) {

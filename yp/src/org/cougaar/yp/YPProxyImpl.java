@@ -61,10 +61,14 @@ import org.cougaar.util.log.*;
 
 class YPProxyImpl implements YPProxy {
   private static final Logger logger = Logging.getLogger(YPProxy.class);
-
   private final String context;
-  YPProxyImpl(String initialContext) {
+  private final YPService yps;
+  private final boolean autosubmit;
+
+  YPProxyImpl(String initialContext, YPService yps, boolean autosubmit) {
     this.context = initialContext;
+    this.yps = yps;
+    this.autosubmit = autosubmit;
   }
 
   /**
@@ -506,14 +510,18 @@ class YPProxyImpl implements YPProxy {
   }
 
   private YPFuture pkg(Element el, boolean qp, Class rc) {
-    return new YPFutureImpl(context, el, qp, rc);
+    YPFuture fut = new YPFutureImpl(context, el, qp, rc);
+    if (autosubmit) {
+      return yps.submit(fut);
+    } else {
+      return fut;
+    }
   }
 
   // Extra method for sending queries without blackboard involvement.
   public YPFuture execute(YPFuture pendingQuery) {
     // not yet implemented.  needs something like:
-    //return ypservice.execute(pendingQuery);
-    return null;
+    return yps.submit(pendingQuery);
   }
 
 
