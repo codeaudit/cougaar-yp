@@ -1,0 +1,85 @@
+This is a somewhat simplified proof-of-concept implementation of a
+distributed Yellow Pages application for Cougaar.
+
+Essential components:
+- YPClientComponent -  An agent-level component to be loaded into each
+agent which needs the capability to query the YP.  This component
+provides a YPService service to the rest of the agent, which pretty
+much implements a UDDI query channel to a set of community-specified
+YP Servers.
+
+- YPService -  The entry-point into the YP application.  Components may
+request YPService and then perform arbitrary YP Queries to a hierarchy
+of YP Servers. The "context" of a YP query is a MessageAddress which
+resolves to an agent with a YPServer component.
+
+- YPServer -  The basic YP Server component to be loaded.  This
+implementation translates cougaar messaging requests into a full UDDI
+server implementation (using soapuddi) with a simple database backend
+(hsqldb).
+
+- YPSoapGateway -  Another variation on a YPServer, which implements
+the service as a gateway to an external (non-cougaar) UDDI server via
+SOAP, using the uddi4j apache soap transport.
+
+
+=====  Problems  =====
+
+We attempted to use a standard web services packages to implement this
+functionality... unfortunately, the state of the art is neither
+complete nor entirely suitable for use in cougaar.  Follows are some
+specific issues with the currently-selected packages:
+
+1. uddij4 is a stable, functional package used by many other
+applications.  But, it doesn't support asynchronous-mode queries, and
+doesn't allow much flexibility in wire transport.  It requires minor
+changes to the transport system to work in cougaar.
+
+2. soapuddi has a number of known bugs and does not seem to be under
+active development.  It assumes one server per VM.  It also writes UID
+sequence files in various places.
+
+3. hsqldb is generally very nice, but:  it cannot operate in in-memory
+mode under soapuddi (see "statics" below).  Even if it did, it may
+require some changes to allow DB backups in sync with agent blackboard
+persists.  In file-backed mode (required for now), it writes files
+directly to disk, which leaves us with a number of security issues.
+
+4. (general) the "statics" problem -  Most server-site web services
+packages assume a single server instance per VM.  This assumption is
+implicit in (at times) extensive use of public static members, often
+merely as programming shortcuts.
+
+
+In addition, the initial implementation itself has a number of
+artificial limitations which, while fixable, have been postponed until
+we resolve the basic issues above.
+
+
+=====  Solutions  =====
+
+We would like to continue to use "standards" as much as possible, so
+in the short term, we will need to do one of the following:
+1. Find alternative packages with similar functionality but which
+satisfies our needs (esp. the "statics" problem).
+2. Modify an existing package to suite cougaar.  In order to maintain
+the "standards" claim, we'll need to get our changes integrated back
+into the OSS mainlines.  Most of the packages of interest are actively
+maintained and would appear to welcome carefully thought-out patches.
+A few of the options are effectively abandoned, even while in common
+use - these would could probably be "taken over" by cougaar, e.g. by
+being granted contributor status on the associated sourceforge
+project (as long as we maintain backward compatability, nobody would
+complain). 
+3. Invent our own packages.  While this might result in a nice
+end-product, it would likely be too expensive to solve the associated
+problems in a general-enough way to really satisfy YP users in the
+long-run. 
+
+=====  Examples  =====
+
+There is sample code in YPTest.java (used by the main() in YPServer).
+This is really just a transcription.
+
+
+
