@@ -38,6 +38,7 @@ public abstract class YPMessage extends Message {
   protected YPMessage(MessageAddress s, MessageAddress d, Element el, Object key) {
     super(s,d);
     this.key = key;
+    this.el = el;
   }
   /** get the YP query key for this message. **/
   Object getKey() { return key; }
