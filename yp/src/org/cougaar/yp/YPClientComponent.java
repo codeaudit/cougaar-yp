@@ -386,13 +386,7 @@ public class YPClientComponent extends ComponentSupport {
     Collection parents;
 
     if (currentContext == null) {
-      String [] parentNames = communityService.getParentCommunities(false);
-
-      if (parentNames != null) {
-	parents = Arrays.asList(parentNames);
-      } else {
-	parents = null;
-      }
+      parents = communityService.listParentCommunities(null, crl); 
     } else {
       if (logger.isDebugEnabled()) {
 	logger.debug("nextYPServerContext: attributes for " +
