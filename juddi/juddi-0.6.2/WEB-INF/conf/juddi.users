@@ -2,4 +2,5 @@
 <juddi-users>
 	<user userid="sviens" password="password" name="Steve Viens" />
 	<user userid="bhablutzel" password="password" name="Bob Hablutzel" />
+	<user userid="cougaar" password="cougaarPass" name="cougaar" />
 </juddi-users>
