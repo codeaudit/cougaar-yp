@@ -234,7 +234,7 @@ public class YPClientComponent extends ComponentSupport {
     Schedulable thread = null;
 
     private void signal() {
-      if (logger.isDebugEnabled()) { logger.debug("LogicProvider signal()"); }
+      //if (logger.isDebugEnabled()) { logger.debug("LogicProvider signal()"); }
       thread.start();
     }
 
@@ -250,7 +250,8 @@ public class YPClientComponent extends ComponentSupport {
     void init() {
       watcher = new SubscriptionWatcher() {
           public void signalNotify(int event) {
-            if (logger.isDebugEnabled()) { logger.debug("LogicProvider signalNotify()"); }
+            super.signalNotify(event);
+            //if (logger.isDebugEnabled()) { logger.debug("LogicProvider signalNotify()"); }
             requestCycle();
           }
           public String toString() {
@@ -274,12 +275,12 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     void requestCycle() {
-      if (logger.isDebugEnabled()) { logger.debug("LogicProvider requestCycle()"); }
+      //if (logger.isDebugEnabled()) { logger.debug("LogicProvider requestCycle()"); }
       signal();
     }
 
     void cycle() {
-      if (logger.isDebugEnabled()) { logger.debug("LogicProvider cycle()"); }
+      //if (logger.isDebugEnabled()) { logger.debug("LogicProvider cycle()"); }
       try {
         blackboard.openTransaction();
         scan();
@@ -288,18 +289,40 @@ public class YPClientComponent extends ComponentSupport {
       }
     }      
 
+    // total hack to see if we're missing anything
+    // ...
+    private HashMap bogon = new java.util.HashMap(11);
+    void see(Object o) { 
+      synchronized(bogon) { 
+        if (bogon.get(o) != null) { logger.warn("detected duplicate add of "+o); }
+        bogon.put(o,o);
+      }
+    }
+    void deja() {
+      synchronized (bogon) {
+        for (Iterator it = futures.iterator(); it.hasNext(); ) {
+          Object o = it.next();
+          if (bogon.get(o) != o) { logger.warn("detected missed add of "+o); bogon.put(o,o);}
+        }
+      }
+    }
+    // ...
+      
+
     // must be called within transaction - e.g. only from cycle or init
     void scan() {
       for (Iterator it = futures.getAddedCollection().iterator(); it.hasNext(); ) {
         YPFuture fut = (YPFuture) it.next();
         try {
           if (logger.isDebugEnabled()) { logger.debug("LogicProvider scan() submitting "+fut); }
+          see(fut);             // bogon
           YPClientComponent.this.submitFromBlackboard(fut);
         } catch (TransportException te) {
           logger.error("YPFuture submit failed ("+fut+")", te);
           blackboard.publishChange(fut);
         }
       }
+      deja();                   // bogon
     }
 
     void kickFuture(YPFuture fut) {
@@ -754,7 +777,7 @@ public class YPClientComponent extends ComponentSupport {
                   " destination " + r.getTarget());
     } else {
       if (logger.isDebugEnabled()) {
-        logger.debug("dispatchResponse(): YPResonseMessage - key " + key +
+        logger.debug("dispatchResponse(): YPResponseMessage - key " + key +
                      " el " + r.getElement() +
                      " source " + r.getOriginator() + 
                      " destination " + r.getTarget() +
