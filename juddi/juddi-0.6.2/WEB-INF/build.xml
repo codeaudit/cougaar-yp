@@ -37,7 +37,7 @@ Copyright:
 
   Copyright 2002 (c) Steve Viens 
 
-   $Id: build.xml,v 1.1 2003-03-12 19:03:36 ngivler Exp $
+   $Id: build.xml,v 1.2 2003-03-14 20:29:01 dmontana Exp $
 
 ==================================================================== -->
 <project default="compile" basedir=".">
@@ -88,13 +88,13 @@ Copyright:
       <classpath refid="project.classpath"/>
       <src path="${src.dir}"/>
     </javac>
+    <mkdir dir="${build.dir}"/>    
+    <jar jarfile="${build.dir}/juddi.jar" basedir="${classes.dir}" includes="org/**"/>
   </target>
   <!-- =================================================================== -->
   <!-- Creates the juddi web module file (juddi.war)                        -->
   <!-- =================================================================== -->
   <target name="war" depends="compile">
-    <mkdir dir="${build.dir}"/>    
-    <jar jarfile="${build.dir}/juddi.jar" basedir="${classes.dir}" includes="org/**"/>
     <war warfile="${build.dir}/juddi.war" webxml="web.xml">
       <fileset dir="${html.dir}">
         <exclude name="WEB-INF/**"/>  
