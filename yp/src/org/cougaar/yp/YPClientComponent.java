@@ -490,13 +490,17 @@ public class YPClientComponent extends ComponentSupport {
   private long counter = System.currentTimeMillis();
     
   private void submitFromBlackboard(YPFuture r) throws TransportException {
-    if (logger.isDebugEnabled()) { logger.debug("submitFromBlackboard("+r+")");}
+    if (logger.isDebugEnabled()) { 
+      logger.debug("submitFromBlackboard("+r+")");
+    }
     ((YPFutureImpl) r).setIsFromBlackboard(true);
     submit(r);
   }
 
   private void submitFromService(YPFuture r) throws TransportException {
-    if (logger.isDebugEnabled()) { logger.debug("submitFromService("+r+")"); }
+    if (logger.isDebugEnabled()) {
+      logger.debug("submitFromService("+r+")");
+    }
     submit(r);
   }
 
@@ -602,7 +606,8 @@ public class YPClientComponent extends ComponentSupport {
     void send() throws TransportException {
       try {
         if (logger.isDebugEnabled()) {
-          logger.debug("Tracker.send: sending YPQueryMessage - origin " + originMA +
+          logger.debug("Tracker.send: sending YPQueryMessage - origin " + 
+		       originMA +
                        " context " + context);
 	  if (context == null) {
             logger.error("Null context in Tracker.send.", new Throwable());
@@ -810,7 +815,9 @@ public class YPClientComponent extends ComponentSupport {
       for (Iterator it = futures.getAddedCollection().iterator(); it.hasNext(); ) {
         YPFuture fut = (YPFuture) it.next();
         try {
-          if (logger.isDebugEnabled()) { logger.debug("LogicProvider scan() submitting "+fut); }
+          if (logger.isDebugEnabled()) { 
+	    logger.debug("LogicProvider scan() submitting "+fut);
+	  }
           YPClientComponent.this.submitFromBlackboard(fut);
         } catch (TransportException te) {
           logger.error("YPFuture submit failed ("+fut+")", te);
@@ -820,7 +827,9 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     void kickFuture(YPFuture fut) {
-      if (logger.isDebugEnabled()) { logger.debug("LogicProvider kickFuture("+fut+")"); }
+      if (logger.isDebugEnabled()) {
+	logger.debug("LogicProvider kickFuture("+fut+")");
+      }
       try {
         blackboard.openTransaction();
         scan();

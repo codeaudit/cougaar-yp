@@ -220,7 +220,8 @@ public class YPServer extends ComponentSupport {
 
     if (timerAlarm != null) {
       if (logger.isInfoEnabled()) {
-	logger.info("suspend -  cancelling timerAlarm.");
+	logger.info(originMA.toString() + 
+		    "suspend -  cancelling timerAlarm.");
       }
       timerAlarm.cancel();
     }
