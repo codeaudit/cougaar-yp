@@ -12,6 +12,12 @@ Prerequisites:
 
    Note: An environment variable named CATALINA_HOME 
    must be set to point to Tomcat's installation directory. 
+
+   03/28/2003 - COUGAAR modification. Set CATALINA_HOME to
+   COUGAAR_INSTALL_PATH before running. Script will pull required
+   support jars from COUGAAR_INSTALL_PATH/sys.
+
+
    
    Note: It is strongly recommended that you add the Ant 
    'bin' directory and the Java 2 SDK 'bin' directory to 
@@ -37,7 +43,7 @@ Copyright:
 
   Copyright 2002 (c) Steve Viens 
 
-   $Id: build.xml,v 1.2 2003-03-14 20:29:01 dmontana Exp $
+   $Id: build.xml,v 1.3 2003-03-28 16:18:10 ngivler Exp $
 
 ==================================================================== -->
 <project default="compile" basedir=".">
@@ -59,11 +65,11 @@ Copyright:
     <property name="packages" value="org.juddi.*"/>
     <property name="windowtitle" value="${name} API"/>
     <property name="copyright" value="Copyright &#169; 2002 SelectInside"/>
-    <property name="tomcat.dir" value="${env.CATALINA_HOME}"/>
+    <property name="sys.dir" value="${env.CATALINA_HOME}/sys"/>
     <path id="project.classpath">
-      <pathelement path="${tomcat.dir}/common/lib/servlet.jar"/>
-      <pathelement path="${tomcat.dir}/common/lib/xerces.jar"/>
-      <pathelement path="${tomcat.dir}/common/lib/jdbc2_0-stdext.jar"/>
+      <pathelement path="${sys.dir}/servlet.jar"/>
+      <pathelement path="${sys.dir}/xerces.jar"/>
+      <pathelement path="${sys.dir}/jdbc2_0-stdext.jar"/>
       <pathelement path="${build.dir}/juddi.jar"/>
       <fileset dir="${lib.dir}">
         <include name="*.jar"/>
@@ -144,3 +150,6 @@ Copyright:
     <delete file="${logs.dir}/*.log" quiet="true"/>
   </target>
 </project>
+
+
+
