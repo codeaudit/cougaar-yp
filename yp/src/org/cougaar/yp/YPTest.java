@@ -21,9 +21,18 @@
 
 package org.cougaar.yp;
 
-// jaxr
-import javax.xml.registry.*;
-import javax.xml.registry.infomodel.*;
+// import all of uddi4j
+import org.uddi4j.*;
+import org.uddi4j.client.*;
+import org.uddi4j.datatype.*;
+import org.uddi4j.datatype.assertion.*;
+import org.uddi4j.datatype.binding.*;
+import org.uddi4j.datatype.business.*;
+import org.uddi4j.datatype.service.*;
+import org.uddi4j.datatype.tmodel.*;
+import org.uddi4j.request.*;
+import org.uddi4j.response.*;
+import org.uddi4j.util.*;
 
 import java.io.*;
 import java.net.*;
@@ -33,6 +42,7 @@ public class YPTest {
   public static void main(String[] arg) {
     YPTest ypt = new YPTest();
     ypt.execute();
+    System.exit(0);
   }
 
   private void execute() {
@@ -44,20 +54,57 @@ public class YPTest {
 
     String company = "%foo%";
 
-    // create a query object
-    YPQuery q = YP.newQuery();
+    UDDIProxy proxy = yps.getUDDIProxy(); // zero arguments = default case
+    // MessageAddress serverName = new MessageAdress("SomeServerName");
+    // UDDIProxy proxy = yps.getUDDIProxy(serverName); // zero arguments = default case
 
-    // can add arbitrary JAXR properties to query
-    Properties props = new Properties();
-    q.addProperties(props);
-   
-    // build up the real query
-    Collection fQualifiers = new ArrayList();
-    fQualifiers.add(FindQualifier.SORT_BY_NAME_DESC);
+    // no need to set the inquiryURL or publishURL
 
-    Collection names = new ArrayList();
-    names.add(company);         // wildcarding name for match
-    
+    Vector names = new Vector();
+    names.add(new Name("S"));
+
+    // Setting FindQualifiers to 'caseSensitiveMatch'
+    FindQualifiers findQualifiers = new FindQualifiers();
+    Vector qualifier = new Vector();
+    qualifier.add(new FindQualifier("caseSensitiveMatch"));
+    findQualifiers.setFindQualifierVector(qualifier);
+
+    try {
+      // Find businesses by name
+      // And setting the maximum rows to be returned as 5.
+      BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+
+      Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
+      for (int i = 0; i < businessInfoVector.size(); i++) {
+        BusinessInfo businessInfo = (BusinessInfo)businessInfoVector.elementAt(i);
+
+        // Print name for each business
+        System.out.println(businessInfo.getNameString());
+      }
+
+      // Handle possible errors
+    } catch (UDDIException e) {
+      DispositionReport dr = e.getDispositionReport();
+      if (dr!=null) {
+        System.out.println("UDDIException faultCode:" + e.getFaultCode() +
+                           "\n operator:" + dr.getOperator() +
+                           "\n generic:"  + dr.getGeneric() +
+                           "\n errno:"    + dr.getErrno() +
+                           "\n errCode:"  + dr.getErrCode() +
+                           "\n errInfoText:" + dr.getErrInfoText());
+      }
+      e.printStackTrace();
+
+      // Catch any other exception that may occur
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+}    
+  /*
+    // this was from the original JAXR code - preserved because I want to 
+    // add asynchronous mode to the UDDI interface.
+    {
     try {
       // YPQuery implements BusinessQueryManager
       q.findOrganizations(fQualifiers, names, null, null, null, null);
@@ -107,65 +154,4 @@ public class YPTest {
     public synchronized void waitForCallback(long timeout) throws InterruptedException
     { if (!called) this.wait(timeout); }
   }
-
-  /*
-  static class FakeYPServer implements YPService {
-  }
   */
-
-  void report(BulkResponse br) throws JAXRException {
-    if (br.getStatus() == JAXRResponse.STATUS_SUCCESS) {
-      System.out.println("Successfully queried the " +
-                         "registry for organization"); 
-      Collection orgs = br.getCollection();
-      System.out.println("Results found: " + orgs.size() + "\n");
-      Iterator iter = orgs.iterator();
-      while (iter.hasNext()) {
-        Organization org = (Organization) iter.next();
-        System.out.println("Organization Name: " +
-                           getName(org));
-        System.out.println("Organization Key: " +
-                           org.getKey().getId());
-        System.out.println("Organization Description: " +
-                           getDescription(org));
-        
-        Collection services = org.getServices();
-        Iterator siter = services.iterator();
-        while (siter.hasNext()) {
-          Service service = (Service) siter.next();
-          System.out.println("\tService Name: " +
-                             getName(service));
-          System.out.println("\tService Key: " +
-                             service.getKey().getId());
-          System.out.println("\tService Description: " +
-                             getDescription(service));
-        }
-      }
-    } else {
-      System.err.println("One or more JAXRExceptions " +
-                         "occurred during the query operation:");
-      Collection exceptions = br.getExceptions();
-      Iterator iter = exceptions.iterator();
-      while (iter.hasNext()) {
-        Exception e = (Exception) iter.next();
-        System.err.println(e.toString());
-      }
-    }
-  }
-
-  private String getName(RegistryObject ro) throws JAXRException {
-    try {
-      return ro.getName().getValue();
-    } catch (NullPointerException npe) {
-      return "";
-    }
-  }
-    
-  private String getDescription(RegistryObject ro) throws JAXRException {
-    try {
-      return ro.getDescription().getValue();
-    } catch (NullPointerException npe) {
-      return "";
-    }
-  }
-}
