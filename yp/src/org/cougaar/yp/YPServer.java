@@ -388,13 +388,13 @@ public class YPServer extends ComponentSupport {
       }
     }
 
-    public boolean hasExpired() { return expired; }
+    public synchronized boolean hasExpired() { return expired; }
     public synchronized boolean cancel() {
       boolean was = expired;
       expired = true;
       return was;
     }
-    public String toString() {
+    public synchronized String toString() {
       return "<TimerAlarm " + expiresAt +
         (expired ? "(Expired) " : " ") +
         "for YPServer at " + originMA + ">";

@@ -52,7 +52,7 @@ public class YPStateMachine extends StackMachine {
     UDDI_PASSWORD = System.getProperty("org.cougaar.yp.juddi-users.password", YPProxy.DEFAULT_UDDI_PASSWORD);
   }
 
-  protected static int WARNING_SUPPRESSION_INTERVAL = 5;
+  private static int WARNING_SUPPRESSION_INTERVAL = 5;
   protected long warningCutoffTime = 0;
   protected static final String YP_GRACE_PERIOD_PROPERTY = 
                 "org.cougaar.servicediscovery.yp.YPGracePeriod";
