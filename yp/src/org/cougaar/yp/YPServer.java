@@ -100,7 +100,12 @@ public class YPServer extends ComponentSupport {
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
         public boolean handleMessage(Message message) {
-	  logger.debug("\n\n\n handleMessage: " + message.getClass());
+	  if (logger.isDebugEnabled()) {
+	    logger.debug("handleMessage: source " + message.getOriginator() +
+			 " target " + message.getTarget() + 
+			 " key " + ((YPQueryMessage) message).getKey() + 
+			 " element " + ((YPQueryMessage) message).getElement());
+	  }
           if (message instanceof YPQueryMessage) {
             dispatchQuery((YPQueryMessage) message);
             return true;
@@ -128,7 +133,10 @@ public class YPServer extends ComponentSupport {
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
     
     if (logger.isDebugEnabled()) {
-      logger.debug("dispatchQuery: response - " + m);
+      logger.debug("dispatchQuery: response - source " + originMA +
+		   " target " + r.getOriginator() + 
+		   " key " + key +
+		   " rel " + rel);
     }
     sendMessage(m);
   }
@@ -185,7 +193,55 @@ public class YPServer extends ComponentSupport {
     }
   }
 
+  private static void copyConfFiles() {
+    String installPath = System.getProperty("org.cougaar.install.path", "/tmp");
+    String workspacePath = System.getProperty("org.cougaar.workspace", installPath + "/workspace");
+
+    String juddiHomeDirPath = System.getProperty("juddi.homeDir", "");
+    if (juddiHomeDirPath.equals("")) {
+      juddiHomeDirPath = workspacePath + "/juddi";
+      System.setProperty("juddi.homeDir", juddiHomeDirPath);
+    }
+
+    try {
+      File juddiHomeDir = new File(juddiHomeDirPath);
+      juddiHomeDir.mkdirs();
+      File hsqlDir = new File(juddiHomeDir, "hsql");
+      hsqlDir.mkdir();
+      
+      File confDir = new File(juddiHomeDir, "conf");
+      confDir.mkdir();
+      
+      File ypConfDir = new File(installPath + "/yp/data/juddi/conf");
+      
+      File []ypConfFiles = ypConfDir.listFiles();
+      for (int index = 0; index < ypConfFiles.length; index++) {
+	BufferedReader in = 
+	  new BufferedReader(new FileReader(ypConfFiles[index]));
+	
+	BufferedWriter out = 
+	  new BufferedWriter(new FileWriter(new File(confDir, ypConfFiles[index].getName())));
+	String inLine;
+	while ((inLine = in.readLine()) != null) {
+	  out.write(inLine);
+	  out.newLine();
+	}
+	
+	in.close();
+	out.close();
+      }
+    } catch (FileNotFoundException fnfe) {
+      fnfe.printStackTrace();
+      logger.fatal("copyConfFiles: error copying configuration files.");
+    } catch (IOException ioe) {
+      ioe.printStackTrace();
+      logger.fatal("copyConfFiles: error copying configuration files.");
+    }
+  }
+
   void initDB() {
+    copyConfFiles();
+
     Connection connection = null;
 
     try {

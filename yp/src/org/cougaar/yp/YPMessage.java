@@ -41,9 +41,10 @@ public abstract class YPMessage extends Message {
     this.el = el;
   }
   /** get the YP query key for this message. **/
-  Object getKey() { return key; }
+  public Object getKey() { return key; }
 
   /** get the DOM element of this message **/
-  Element getElement() { return el; }
+  public Element getElement() { return el; }
 }
+
 

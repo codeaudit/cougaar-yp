@@ -33,8 +33,9 @@ class WaitQueue {
 
   /** Construct a key to be used in this wait queue **/
   Object getKey() {
-    Object key = new Long(counter++);
+    Object key;
     synchronized (selects) {
+      key = new Long(counter++);
       selects.put(key, new Waiter());
     }
     return key;

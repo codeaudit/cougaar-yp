@@ -36,6 +36,8 @@ import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
 
+import org.cougaar.util.log.*;
+
 /** An Agent-level Component which implements the client-side of the Cougaar
  * YellowPages Application.
  * @note this version supports only Component-model Service style access,
@@ -44,7 +46,8 @@ import org.cougaar.core.agent.service.MessageSwitchService;
  **/
 
 public class YPClientComponent extends ComponentSupport {
-  
+  private static final Logger logger = Logging.getLogger(YPClientComponent.class);  
+
   private MessageSwitchService mss = null;
   private YPTransport transport;
   private WaitQueue wq = new WaitQueue();
@@ -88,6 +91,12 @@ public class YPClientComponent extends ComponentSupport {
   private void dispatchResponse(YPResponseMessage r) {
     Object key = r.getKey();
     Element el = r.getElement();
+    if (logger.isDebugEnabled()) {
+      logger.debug("dispatchResponse(): YPResonseMessage - key " + key +
+		   " el " + r.getElement() +
+		   " source " + r.getOriginator() + 
+		   " destination " + r.getTarget());
+    }
     wq.trigger(key, el);
   }
 
@@ -222,12 +231,26 @@ public class YPClientComponent extends ComponentSupport {
       Object key = wq.getKey();
       try {
         YPQueryMessage m = new YPQueryMessage(originMA, ma, el, iqp, key);
+	if (logger.isDebugEnabled()) {
+	  logger.debug("sendOne: sending YPQueryMessage - origin " + originMA +
+		       " target " + ma +
+		       " el " + el + 
+		       " key "  + key);
+	}
         mss.sendMessage(m);
         while (true) {
           try {
+	    if (logger.isDebugEnabled()) {
+	      logger.debug("Calling WaitQueue.waitFor() - key " + key);
+	    }
             return (Element) wq.waitFor(key);
           } catch (InterruptedException ie) {
             // should probably log here...
+	    if (logger.isDebugEnabled()) {
+	      logger.debug("InterrupedException while in WaitQueue.waitFor()" +
+			   " key - " + key);
+	      ie.printStackTrace();
+	    }
             Thread.interrupted();
           }
         }
