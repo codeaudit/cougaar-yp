@@ -21,18 +21,20 @@
 
 package org.cougaar.yp;
 
-import org.uddi4j.client.*;
-
-import java.io.*;
-import java.net.*;
-import java.util.*;
-
 import org.cougaar.core.component.Service;
 
 public interface YPService extends Service {
-  /** Get a UDDIProxy for YP Queries in a specific context.  
+  /** Get a Proxy for YP Queries in a specific context.  
    * @param context The context is a name to be looked up in the WP.  If null, will default
    * to the set of communities this agent is a member of.
    **/
-  UDDIProxy getYP(String context);
+  YPProxy getYP(String context);
+
+  /** Submit a YPFuture to be transmitted.
+   * @note This method is only for use by clients which can afford to block their thread - 
+   * most clients with blackboard access should publish/subscribe the YPFuture instead.
+   * @return argument for convenience.
+   **/
+  YPFuture submit(YPFuture ypr);
+
 }

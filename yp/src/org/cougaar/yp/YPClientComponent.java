@@ -36,6 +36,11 @@ import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
 
+import org.cougaar.core.blackboard.*;
+import org.cougaar.core.service.BlackboardService;
+import org.cougaar.util.*;
+
+
 import org.cougaar.util.log.*;
 
 /** An Agent-level Component which implements the client-side of the Cougaar
@@ -49,23 +54,19 @@ public class YPClientComponent extends ComponentSupport {
   private static final Logger logger = Logging.getLogger(YPClientComponent.class);  
 
   private MessageSwitchService mss = null;
-  private YPTransport transport;
-  private WaitQueue wq = new WaitQueue();
-  private MessageAddress originMA;
   private YPServiceProvider ypsp;
-  private YPResolver resolver;
-
-  protected void sendMessage(Message m) {
-    mss.sendMessage(m);
-  }
+  private MessageAddress originMA;
+  private BlackboardService blackboard;;
+  private YPLP lp;
 
   public void initialize() {
     super.initialize();
 
-    transport = new YPTransport();
-    resolver = new YPResolver();
-
     // this should probably go into load
+
+    ServiceBroker sb = getServiceBroker();
+    mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
+    this.originMA = mss.getMessageAddress();
 
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
@@ -77,36 +78,20 @@ public class YPClientComponent extends ComponentSupport {
           return false;
         }
       };
-    ServiceBroker sb = getServiceBroker();
-    mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
+
     mss.addMessageHandler(mh);
-    originMA = mss.getMessageAddress();
+
+    lp = new YPLP();
+    blackboard = (BlackboardService) sb.getService(lp,BlackboardService.class, null);
+    lp.start();
 
     ypsp = new YPServiceProvider();
     sb.addService(YPService.class, ypsp);
+
+    System.err.println("YPClientComponent/"+originMA+" initialized.");
+
   }
 
-
-  /** dispatch the response to the appropriate listener **/
-  private void dispatchResponse(YPResponseMessage r) {
-    Object key = r.getKey();
-    Element el = r.getElement();
-    if (logger.isDebugEnabled()) {
-      logger.debug("dispatchResponse(): YPResonseMessage - key " + key +
-		   " el " + r.getElement() +
-		   " source " + r.getOriginator() + 
-		   " destination " + r.getTarget());
-    }
-    wq.trigger(key, el);
-  }
-
-  private Element resolverSend(Element el, URL url) throws TransportException {
-    return resolver.send(el, url);
-  }
-  
-  private MessageAddress convertURLtoMA(URL url) {
-    return MessageAddress.getMessageAddress(URI.create(url.toString()));
-  }
 
   //
   // YPService
@@ -124,140 +109,309 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     public void releaseService(ServiceBroker sb, Object requestor, Class serviceClass, Object service) {
-      // no worries
+      // drop the service.
     }
   }
 
-  private final static String F_INQUIRY = "inquiry";
-  private final static String F_PUBLISH = "publish";
-  
   private class YPServiceImpl implements YPService {
     /** Get a UDDIProxy for YP Queryies **/
-    public UDDIProxy getYP(String context) {
-      // the Proxy returned should be a proxy which supports asynchronous operations
-      UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
-
-      // this is wrong, but what I've got until we've got a wp installed
-      if (context == null) {
-        context = "default";
-      }
-      try {
-        URL iurl = new URL("http",context,F_INQUIRY);
-        URL purl = new URL("https",context,F_PUBLISH);
-        proxy.setInquiryURL(iurl);
-        proxy.setPublishURL(purl);
-      } catch (MalformedURLException e) { 
-        // cannot happen
-      }
-
-      return proxy;
+    public YPProxy getYP(String context) {
+      return new YPProxyImpl(context);
     }
+
+    public YPFuture submit(YPFuture r) {
+      try {
+        YPClientComponent.this.submit(r);
+        return r;
+      } catch (TransportException te) {
+        throw new RuntimeException("submit nested exception", te);
+      }
+    }
+  }
+
+
+  //
+  // blackboard client
+  // 
+  
+  private class YPLP implements BlackboardClient {
+    public String getBlackboardClientName() { return "YPClient"; }
+    public long currentTimeMillis() { return System.currentTimeMillis(); }
+    
+    IncrementalSubscription futures;
+    SubscriptionWatcher watcher;
+
+    private final Object sem = new Object();
+    private boolean pending = false; // true iff need service, locked by sem
+    private void pause() throws InterruptedException {
+      synchronized (sem) {
+        if (pending) {
+          pending = false;
+        } else {
+          sem.wait();
+        }
+      }
+    }
+    private void signal() {
+      synchronized (sem) {
+        pending = true;
+        sem.notify();
+      }
+    }
+
+    Thread thread = null;
+
+    void start() {
+      thread = new Thread(new Runnable() {
+          public void run() {
+            init();
+            while (true) {
+              try {
+                pause();
+              } catch (InterruptedException e) {
+                return;
+              }
+              cycle();
+            }
+          }});
+      thread.start();
+    }
+
+    void stop() {
+      synchronized (sem) {
+        thread.interrupt();
+      }
+    }
+
+    void init() {
+      watcher = new SubscriptionWatcher() {
+          public void signalNotify(int event) {
+            //logger.warn("YPLP signalNotify");
+            requestCycle();
+          }
+          public String toString() {
+            return "YPWatcher("+originMA+")";
+          }
+        };
+
+      blackboard.registerInterest(watcher);
+
+      try {
+        //logger.warn("YPLP subscribe");
+        blackboard.openTransaction();
+
+        futures = (IncrementalSubscription) blackboard.subscribe(new UnaryPredicate() {
+            public boolean execute(Object o) { return (o instanceof YPFuture); }
+          });
+        scan();
+      } finally {
+        blackboard.closeTransaction();
+      }
+      signal();
+    }
+
+    void requestCycle() {
+      //logger.warn("YPLP requestCycle"); 
+      signal();
+    }
+
+    void cycle() {
+      //logger.warn("YPLP cycle");
+      try {
+        blackboard.openTransaction();
+        scan();
+      } finally {
+        blackboard.closeTransaction();
+      }
+    }      
+
+    void scan() {
+      for (Iterator it = futures.getAddedCollection().iterator(); it.hasNext(); ) {
+        YPFuture fut = (YPFuture) it.next();
+        try {
+          //logger.warn("YPLP submitting "+fut);
+          YPClientComponent.this.submit(fut);
+        } catch (TransportException te) {
+          logger.warn("YPFuture submit failed ("+fut+")", te);
+          blackboard.publishChange(fut);
+        }
+      }
+    }
+
+    void kickFuture(YPFuture fut) {
+      //logger.warn("YPLP kicking "+fut);
+      try {
+        blackboard.openTransaction();
+        blackboard.publishChange(fut);
+      } finally {
+        blackboard.closeTransaction();
+      }
+    }      
   }
 
   // 
-  // UDDI4J Connection
-  //
-
-  /** Stub UDDI4J transport to hook into our resolver backend **/
-  private class YPTransport extends TransportBase {
-    /** Send the DOM element specified to the URL as interpreted by the MTS **/
-    public Element send(Element el, java.net.URL url) throws TransportException {
-      return resolverSend(el, url);
-    }
-  }
-
-  //
   // resolver
   //
 
-  /** The resolver posts multiple queries to various YP servers until we 
-   * get an answer or run out of servers.
+
+  void sendMessage(Message m) {
+    mss.sendMessage(m);
+  }
+
+
+  /** Convert a context to a MessageAddress supporting the YP application **/
+  MessageAddress lookup(String context) {
+    // this should be a WP lookup like:
+    // return wp.lookupName(context, "YP");
+    return MessageAddress.getMessageAddress(context);
+  }
+
+  /** Find the next context to search.
+   * @return null if we're out of contexts.
    **/
-  private class YPResolver {
-    Element send(Element el, URL url) throws TransportException {
-      String context = url.getHost();
-      boolean isInquiry;
-      {
-        String f = url.getFile();
-        if (F_INQUIRY.equals(f)) {
-          isInquiry = true;
-        } else if (F_PUBLISH.equals(f)) {
-          isInquiry = false;
-        } else {
-          throw new RuntimeException("Couldn't reparse the URL \""+url+"\"");
-        }
-      }
+  String nextContext(YPFuture query, String currentContext) {
+    // no nesting right now, but Community should provide this information,
+    // or maybe it is built in.
+    //return communityService.getParentCommunity(context);
+    return null;
+  }
 
-      // resolver main loop
-      String currentContext = context;
-      while (currentContext != null) {
-        MessageAddress ma = lookup(currentContext);
+  /** return true IFF the element represents an actual answer (or positive failure) **/
+  boolean isResponseComplete(YPFuture r, Element e) {
+    return (e != null);
+  }
 
-        Element response = sendOne(el, isInquiry, ma);
-        if (isResponseComplete(response)) {
-          return response;
-        }
+  /** (maybe) Tell the appropriate LogicProvider that the query is complete
+   * and any subscribers need to be told to wake up
+   **/
+  void kickLP(YPFuture r) {
+    lp.kickFuture(r);
+  }
 
-        currentContext = nextContext(currentContext);
-      }
-      
-      return null;
-    }
-
-    /** Convert a context to a MessageAddress supporting the YP application **/
-    MessageAddress lookup(String context) {
-      // this should be a WP lookup like:
-      // return wp.lookupName(context, "YP");
-      return MessageAddress.getMessageAddress(context);
-    }
-
-    /** return the next higher-level context from the specified one or null **/
-    String nextContext(String context) {
-      // no nesting right now, but Community should provide this information,
-      // or maybe it is built in.
-      //return communityService.getParentCommunity(context);
-      return null;
-    }
-
-
-    /** return true IFF the element represents an actual answer (or positive failure) **/
-    boolean isResponseComplete(Element e) {
-      return (e != null);
-    }
-
+  /** Key counter.  Access locked by selects.  **/
+  private long counter = System.currentTimeMillis();
+  /** Keep track of outstanding requests.  Also used as sync lock for counter and selects itself. **/
+  private final HashMap selects = new HashMap(11); // assume not too many at a time
     
-    /** Send a single in-band YP request to the destination point **/
-    Element sendOne(Element el, boolean iqp, MessageAddress ma) throws TransportException {
-      Object key = wq.getKey();
+  /** Submit a request.
+   */
+  void submit(YPFuture r) throws TransportException {
+    track(r, r.getInitialContext());
+  }
+
+  /** Track a single message, implicitly watching the whole resolver chain **/
+  Tracker track(YPFuture r, String context) throws TransportException {
+    Tracker t;
+
+    synchronized (selects) {
+      Object key = new Long(counter++);
+      t = new Tracker(r, context, key);
+      selects.put(key, t);
+    }
+    
+    t.send();
+    return t;
+  }
+
+  /** dispatch the response to the appropriate listener **/
+  private void dispatchResponse(YPResponseMessage r) {
+    Object key = r.getKey();
+    Element el = r.getElement();
+
+    Tracker tracker;
+    synchronized (selects) {
+      tracker = (Tracker) selects.remove(key);
+    }
+
+    if (tracker == null) {
+      logger.warn("dispatchResponse(): Cannot find tracker for key "+ key +
+                  " el " + r.getElement() +
+                  " source " + r.getOriginator() + 
+                  " destination " + r.getTarget());
+    } else {
+      if (logger.isDebugEnabled()) {
+        logger.debug("dispatchResponse(): YPResonseMessage - key " + key +
+                     " el " + r.getElement() +
+                     " source " + r.getOriginator() + 
+                     " destination " + r.getTarget() +
+                     " = "+el);
+      }
+
+      tracker.receiveResponse(el);
+    }
+  }
+
+  /** 
+   *
+   **/
+  class Tracker {
+    private final YPFutureImpl query;
+    private final String context;
+    private final Object key;
+
+    Tracker(YPFuture r, String context, Object key) {
+      this.query = (YPFutureImpl) r; // shouldn't be possible to get to this point, but you never know
+      this.context = context;
+      this.key = key;
+    }
+    
+    void send() throws TransportException {
       try {
+        MessageAddress ma = lookup(context);
+        Element el = query.getElement();
+        boolean iqp = query.isInquiry();
         YPQueryMessage m = new YPQueryMessage(originMA, ma, el, iqp, key);
-	if (logger.isDebugEnabled()) {
-	  logger.debug("sendOne: sending YPQueryMessage - origin " + originMA +
-		       " target " + ma +
-		       " el " + el + 
-		       " key "  + key);
-	}
-        mss.sendMessage(m);
-        while (true) {
-          try {
-	    if (logger.isDebugEnabled()) {
-	      logger.debug("Calling WaitQueue.waitFor() - key " + key);
-	    }
-            return (Element) wq.waitFor(key);
-          } catch (InterruptedException ie) {
-            // should probably log here...
-	    if (logger.isDebugEnabled()) {
-	      logger.debug("InterrupedException while in WaitQueue.waitFor()" +
-			   " key - " + key);
-	      ie.printStackTrace();
-	    }
-            Thread.interrupted();
-          }
+        if (logger.isDebugEnabled()) {
+          logger.debug("Tracker.send: sending YPQueryMessage - origin " + originMA +
+                       " target " + ma +
+                       " el " + el + 
+                       " key "  + key);
         }
+        sendMessage(m);
       } catch (RuntimeException re) {
         throw new TransportException(re);
       }
     }
-  }
 
+    void receiveResponse(Element result) {
+      if (isResponseComplete(query, result)) {
+        if (logger.isDebugEnabled()) {
+          logger.debug("Tracker "+key+" waking with "+result);
+        }
+        // we got THE answer.  deal with it.
+        query.setFinalContext(context); // where did the answer come from?
+        query.set(result);
+        kickLP(query);
+      } else {
+        if (logger.isDebugEnabled()) {
+          logger.debug("Tracker "+key+" continuing resolver search");
+        }
+        // keep going
+        String nc = nextContext(query, context);
+        if (nc != null) {
+          if (logger.isDebugEnabled()) {
+            logger.debug("Tracker "+key+" continuing resolver search, next context = "+nc);
+          }
+          try {
+            track(query, nc);
+          } catch (TransportException ex) {
+            if (logger.isDebugEnabled()) {
+              logger.debug("Tracker "+key+" failing resolver search, next context = "+nc, ex);
+            }
+            // really shouldn't happen unless there is something broken with the context tree
+            query.setFinalContext(context);
+            query.setException(ex);
+            kickLP(query);
+          } 
+        } else {
+          if (logger.isDebugEnabled()) {
+            logger.debug("Tracker "+key+" failed search with no result");
+          }
+          query.setFinalContext(context); // last queried context
+          query.set(null);      // nobody answered
+          kickLP(query);
+        }
+      }
+    }
+  }
 }

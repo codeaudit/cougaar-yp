@@ -79,15 +79,16 @@ public class YPTest extends ComponentSupport {
     }
   }
 
+  YPService yps = null;
   public void initialize() {
     super.initialize();
     System.err.println("YPTest running.");
 
-    YPService yps = (YPService) getServiceBroker().getService(this, YPService.class, null);
+    yps = (YPService) getServiceBroker().getService(this, YPService.class, null);
 
     String context = arg;
 
-    UDDIProxy proxy = yps.getYP(context);
+    YPProxy proxy = yps.getYP(context);
 
     test(proxy);
     System.err.println("YPTest done.");
@@ -99,11 +100,11 @@ public class YPTest extends ComponentSupport {
   static String sampleName2 = "Second Co";
 
 
-  public void test(UDDIProxy proxy) {
+  public void test(YPProxy proxy) {
     test (proxy, sampleName);
   }
 
-  public void test(UDDIProxy proxy, String bName) {
+  public void test(YPProxy proxy, String bName) {
     testPutBusiness(proxy, bName);
     testGetBusiness(proxy);
     try { Thread.sleep (10000); }
@@ -111,13 +112,13 @@ public class YPTest extends ComponentSupport {
     testGetBusiness(proxy);
   }
 
-  public void testPutBusiness(UDDIProxy proxy, String businessName) {
+  public void testPutBusiness(YPProxy proxy, String businessName) {
     try {
       // Get an authorization token
       System.out.println("\nGet authtoken");
 
       // Pass in userid and password registered at the UDDI site
-      AuthToken token = proxy.get_authToken(user, pass);
+      AuthToken token = (AuthToken) yps.submit(proxy.get_authToken(user, pass)).get();
 
       System.out.println("Returned authToken:" + token.getAuthInfoString());
 
@@ -133,7 +134,7 @@ public class YPTest extends ComponentSupport {
       entities.addElement(be);
 
       // Save business
-      BusinessDetail bd = proxy.save_business(token.getAuthInfoString(),entities);
+      BusinessDetail bd = (BusinessDetail) yps.submit(proxy.save_business(token.getAuthInfoString(),entities)).get();
 
       // Process returned BusinessDetail object
       Vector businessEntities = bd.getBusinessEntityVector();
@@ -157,7 +158,7 @@ public class YPTest extends ComponentSupport {
 
       // Find businesses by name
       // And setting the maximum rows to be returned as 5.
-      BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+      BusinessList businessList = (BusinessList) yps.submit(proxy.find_business(names, null, null, null,null,findQualifiers,5)).get();
 
       Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
       for (int i = 0; i < businessInfoVector.size(); i++) {
@@ -166,25 +167,12 @@ public class YPTest extends ComponentSupport {
       }
 
       // Handle possible errors
-    } catch (UDDIException e) {
-      DispositionReport dr = e.getDispositionReport();
-      if (dr!=null) {
-        System.out.println("UDDIException faultCode:" + e.getFaultCode() +
-                           "\n operator:" + dr.getOperator() +
-                           "\n generic:"  + dr.getGeneric() +
-                           "\n errno:"    + dr.getErrno() +
-                           "\n errCode:"  + dr.getErrCode() +
-                           "\n errInfoText:" + dr.getErrInfoText());
-      }
-      e.printStackTrace();
-
-      // Catch any other exception that may occur
     } catch (Exception e) {
       e.printStackTrace();
     }
   } 
 
-  public void testGetBusiness(UDDIProxy proxy) {
+  public void testGetBusiness(YPProxy proxy) {
     try {
       //creating vector of Name Object
       Vector names = new Vector();
@@ -198,7 +186,7 @@ public class YPTest extends ComponentSupport {
 
       // Find businesses by name
       // And setting the maximum rows to be returned as 5.
-      BusinessList businessList = proxy.find_business(names, null, null, null,null,findQualifiers,5);
+      BusinessList businessList = (BusinessList) yps.submit(proxy.find_business(names, null, null, null,null,findQualifiers,5)).get();
 
       Vector businessInfoVector  = businessList.getBusinessInfos().getBusinessInfoVector();
       for (int i = 0; i < businessInfoVector.size(); i++) {
@@ -209,102 +197,15 @@ public class YPTest extends ComponentSupport {
       }
 
       // Handle possible errors
-    } catch (UDDIException e) {
-      DispositionReport dr = e.getDispositionReport();
-      if (dr!=null) {
-        System.out.println("UDDIException faultCode:" + e.getFaultCode() +
-                           "\n operator:" + dr.getOperator() +
-                           "\n generic:"  + dr.getGeneric() +
-                           "\n errno:"    + dr.getErrno() +
-                           "\n errCode:"  + dr.getErrCode() +
-                           "\n errInfoText:" + dr.getErrInfoText());
-      }
-      e.printStackTrace();
-
-      // Catch any other exception that may occur
     } catch (Exception ex) {
       ex.printStackTrace();
     }
   }
 
 
-  /** this is a standalone test which doesn't require a
-   * cougaar society.  It does not test the Messaging infrastructure
-   * but executes the same actual UDDI operations as the society 
-   * test does.
-   **/
-
-  public static void main(String[] arg) {
-    (new ServerThread (sampleName)).start();
-    try { Thread.sleep (2000); }
-    catch (Exception e) { System.out.println ("Interrupted sleep"); }
-    (new ServerThread (sampleName2)).start();
-  }
-
-  private static class ServerThread extends Thread {
-    String bName;
-
-    public ServerThread (String bName) {
-      this.bName = bName;
-    }
-
-    public void run() {
-      YPServer yp = new YPServer();
-      yp.initDB();
-      yp.initUDDI();
-      StandaloneYPTransport transport = new StandaloneYPTransport(yp);
-
-      UDDIProxy proxy = new UDDIProxy(transport); // BBN Extension to uddi4j
-      try {
-        URL iurl = new URL("http","zoop", "frotz");
-        URL purl = new URL("https","zart", "glorp");
-        proxy.setInquiryURL(iurl);
-        proxy.setPublishURL(purl);
-      } catch (MalformedURLException e) { 
-        // cannot happen
-      }
-
-      new YPTest().test(proxy, bName);
-    }
-  }
-  
-  private static class StandaloneYPTransport extends TransportBase {
-    private YPServer yp;
-    StandaloneYPTransport(YPServer yp) {
-      this.yp = yp;
-    }
-    /** Send the DOM element specified to the URL as interpreted by the MTS **/
-    public Element send(Element el, java.net.URL url) throws TransportException {
-      logger.debug("Transported query "+el);
-//      describeElement(el);
-      Element resp = yp.executeQuery(serialize(el));
-      logger.debug("Sending Response "+resp);
-//      describeElement(resp);
-      return serialize(resp);
-    }
-    private Element serialize(Element el) {
-      try {
-      ByteArrayOutputStream outbytes = new ByteArrayOutputStream();
-      ObjectOutputStream oos = new ObjectOutputStream(outbytes);
-      oos.writeObject(el);
-      oos.close();
-      ByteArrayInputStream inbytes = new ByteArrayInputStream(outbytes.toByteArray());
-      ObjectInputStream ois = new ObjectInputStream(inbytes);
-      Element rv = (Element) ois.readObject();
-      ois.close();
-      return rv;
-      } catch (Exception e) {
-        e.printStackTrace();
-        return null;
-      }
-    }
-  }
-
-
-
   // hack XML printer for debugging
-  static void describeElement(Node el) { describeElement(el,""); }
-  static void describeElement(Node el,String prefix) { 
+  public static void describeElement(Node el) { describeElement(el,""); }
+  public static void describeElement(Node el,String prefix) { 
     System.out.println(prefix+el);
     String pn = prefix+" ";
     if (el.hasChildNodes()) {
@@ -313,62 +214,5 @@ public class YPTest extends ComponentSupport {
       }
     }
   }
-
-
-  /*
-    // this was from the original JAXR code - preserved because I want to 
-    // add asynchronous mode to the UDDI interface.
-    {
-    try {
-      // YPQuery implements BusinessQueryManager
-      q.findOrganizations(fQualifiers, names, null, null, null, null);
-
-      // blocking wait
-      {
-        YPResponse r = yps.submitQuery(q, null);
-        try {
-          r.waitForIsAvailable();
-        } catch (InterruptedException ie) {}
-        report(r);
-      }
-
-      // polling wait
-      {
-        YPResponse r = yps.submitQuery(q, null);
-        while (! r.isAvailable()) {
-          try {
-            Thread.sleep(1000);       // wait a sec
-          } catch (InterruptedException ie) {}
-        }
-        report(r);
-      }
-
-      // callback
-      {
-        Callback callback = new Callback();
-        YPResponse r = yps.submitQuery(q, callback);
-        //r.addCallback(callback); // will callback immediately if already has the answer
-        try {
-          callback.waitForCallback();
-          report(r);
-        } catch (InterruptedException ie) { }
-      }
-    } catch (JAXRException je) {
-      je.printStackTrace();
-    }
-    // done
-  }
-
-  static class Callback implements Runnable {
-    private boolean called = false;
-    public synchronized void run() { called = true; this.notify(); }
-    public synchronized boolean isCalled() { return called; }
-    public synchronized void waitForCallback() throws InterruptedException
-    { if (!called) this.wait(); }
-    public synchronized void waitForCallback(long timeout) throws InterruptedException
-    { if (!called) this.wait(timeout); }
-  }
-  */
-
 }
 
