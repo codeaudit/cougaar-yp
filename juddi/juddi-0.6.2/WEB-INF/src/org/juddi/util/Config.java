@@ -74,16 +74,16 @@ public class Config
   private static final int DEFAULT_MAX_USE_TYPE_LENGTH = 255;
 
   private static final String propertiesFileName = "juddi.properties";
-  private static Properties properties; // configuration properties
+  // Use Config.dbTag as the HashMap key. So ... if process is using more than
+  // 1 database, must set dbTag before each interaction. Connections are not
+  // re-entrant so only one thread can be using a connection at a time.
+  private static HashMap propertiesMap = new HashMap(); // configuration properties
 
   // Use Config.dbTag as the HashMap key. So ... if process is using more than
   // 1 database, must set dbTag before each interaction. Connections are not
   // re-entrant so only one thread can be using a connection at a time.
   private static HashMap homeDirMap = new HashMap();
   private static HashMap confDirMap = new HashMap();
-
-  //private static File homeDir; // top level directory
-  //private static File confDir; // conf file directory
 
   public static ThreadLocal dbTag = new ThreadLocal() {
     protected synchronized Object initialValue() {
@@ -99,7 +99,8 @@ public class Config
    */
   static
   {
-    loadProperties();
+    /* Removed to support configuration info keyed by dbTag thread local. */
+    //loadProperties();
   }
 
   /**
@@ -387,7 +388,7 @@ public class Config
    */
   public static Properties getProperties()
   {
-    return properties;
+    return (Properties) propertiesMap.get(dbTag.get());
   }
 
   /**
@@ -405,11 +406,15 @@ public class Config
     if (key==null)
       return null;
 
-    if(properties==null)
+    Properties properties = getProperties();
+
+    if (properties==null) {
       loadProperties();
+      properties = getProperties();
+    }
 
     // no properties to look into - return null
-    if(properties==null)
+    if (properties==null)
       return null;
 
     retval = properties.getProperty(key);
@@ -513,7 +518,7 @@ public class Config
    */
   static void startup()
   {
-    if (properties != null)
+    if (getProperties() != null)
       shutdown();
     loadProperties();
   }
@@ -524,11 +529,13 @@ public class Config
    */
   static void shutdown()
   {
+    Properties properties = getProperties();
     if(properties != null)
     {
       // release any aquired resources and stop any background threads.
       //ConfiguratorFactory.destroyConfigurator(conf); // not implemented yet
       properties = null;
+      propertiesMap.remove(dbTag.get());
     }
   }
 
@@ -545,9 +552,13 @@ public class Config
     // If multiple threads are waiting to envoke this method only allow
     // the first one to do so.  The rest should just return since the first
     // thread through took care of loading the properties.
-    if (properties!=null)
-      return;
 
+    Properties properties = getProperties();
+
+    if (properties!=null) {
+      return;
+    }
+    
     String propertiesFile = null;
 
     try
@@ -561,6 +572,7 @@ public class Config
         properties = new Properties();
         // Load the properties object from the properties file
         properties.load(fis);
+	propertiesMap.put(dbTag.get(), properties);
       }
       finally
       {
@@ -603,11 +615,9 @@ public class Config
       
       // Try to access the home directory
       if(!homeDir.isDirectory()) {
-	if (!homeDir.mkdirs()) {
-	  throw new RuntimeException("jUDDI home directory " + 
-				     homeDir.getAbsolutePath() + 
-				     " doesn't exist or cannot be accessed!");
-	}
+	throw new RuntimeException("jUDDI home directory " + 
+				   homeDir.getAbsolutePath() + 
+				   " doesn't exist or cannot be accessed!");
       }
 
       homeDirMap.put(dbTag.get(), homeDir);
@@ -616,11 +626,9 @@ public class Config
       File confDir = new File(homeDir.getPath() + File.separator + "conf");
 	
       if(!confDir.isDirectory())
-	if (!confDir.mkdirs()) {
-	  throw new RuntimeException("jUDDI conf directory " + 
-				     confDir.getAbsolutePath() + 
-				     " doesn't exist or cannot be accessed!");
-	}
+	throw new RuntimeException("jUDDI conf directory " + 
+				   confDir.getAbsolutePath() + 
+				   " doesn't exist or cannot be accessed!");
       confDirMap.put(dbTag.get(), confDir);
     }
   }
@@ -632,8 +640,10 @@ public class Config
   public String toString()
   {
     // make sure properties have been loaded
-    if(properties==null)
+    if(getProperties()==null)
       loadProperties();
+
+    Properties properties = getProperties();
 
     // let's create a place to put the property information
     StringBuffer buff = new StringBuffer(100);
