@@ -109,7 +109,6 @@ public class YPClientComponent extends ComponentSupport {
 
     ypsp = new YPServiceProvider();
     sb.addService(YPService.class, ypsp);
-    //System.err.println("YPClientComponent/"+originMA+" loaded.");
   }
 
   //
@@ -235,7 +234,7 @@ public class YPClientComponent extends ComponentSupport {
     Schedulable thread = null;
 
     private void signal() {
-      //System.err.println("YPLP ping");
+      if (logger.isDebugEnabled()) { logger.debug("LogicProvider signal()"); }
       thread.start();
     }
 
@@ -251,7 +250,7 @@ public class YPClientComponent extends ComponentSupport {
     void init() {
       watcher = new SubscriptionWatcher() {
           public void signalNotify(int event) {
-            //logger.warn("YPLP signalNotify");
+            if (logger.isDebugEnabled()) { logger.debug("LogicProvider signalNotify()"); }
             requestCycle();
           }
           public String toString() {
@@ -262,7 +261,6 @@ public class YPClientComponent extends ComponentSupport {
       blackboard.registerInterest(watcher);
 
       try {
-        //logger.warn("YPLP subscribe");
         blackboard.openTransaction();
 
         futures = (IncrementalSubscription) blackboard.subscribe(new UnaryPredicate() {
@@ -276,13 +274,12 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     void requestCycle() {
-      //logger.warn("YPLP requestCycle"); 
+      if (logger.isDebugEnabled()) { logger.debug("LogicProvider requestCycle()"); }
       signal();
     }
 
     void cycle() {
-      //logger.warn("YPLP cycle");
-      //System.err.println("YPLP pong");
+      if (logger.isDebugEnabled()) { logger.debug("LogicProvider cycle()"); }
       try {
         blackboard.openTransaction();
         scan();
@@ -293,12 +290,10 @@ public class YPClientComponent extends ComponentSupport {
 
     // must be called within transaction - e.g. only from cycle or init
     void scan() {
-      //System.err.println("YPLP scan");
       for (Iterator it = futures.getAddedCollection().iterator(); it.hasNext(); ) {
         YPFuture fut = (YPFuture) it.next();
         try {
-          //logger.warn("YPLP submitting "+fut);
-          //System.err.println("YPLP submitting "+fut);
+          if (logger.isDebugEnabled()) { logger.debug("LogicProvider scan() submitting "+fut); }
           YPClientComponent.this.submitFromBlackboard(fut);
         } catch (TransportException te) {
           logger.error("YPFuture submit failed ("+fut+")", te);
@@ -308,16 +303,13 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     void kickFuture(YPFuture fut) {
-      //logger.warn("YPLP kicking "+fut);
-      //System.err.println("YPLP kicking "+fut);
+      if (logger.isDebugEnabled()) { logger.debug("LogicProvider kickFuture("+fut+")"); }
       try {
         blackboard.openTransaction();
-        //System.err.println("YPLP changing "+fut);
         blackboard.publishChange(fut);
       } finally {
         blackboard.closeTransaction();
       }
-      //System.err.println("YPLP change closed "+fut);
     }      
   }
 
@@ -664,7 +656,7 @@ public class YPClientComponent extends ComponentSupport {
    * and any subscribers need to be told to wake up
    **/
   void kickLP(YPFuture r) {
-    //System.err.println("YPCLient KICK "+r);
+    if (logger.isDebugEnabled()) { logger.debug("kickLP("+r+")"); }
     if (((YPFutureImpl) r).isFromBlackboard()) {
       // only invoke the subscription kicker if it was submitted that way.
       lp.kickFuture(r);
@@ -677,10 +669,12 @@ public class YPClientComponent extends ComponentSupport {
   private final HashMap selects = new HashMap(11); // assume not too many at a time
     
   void submitFromBlackboard(YPFuture r) throws TransportException {
+    if (logger.isDebugEnabled()) { logger.debug("submitFromBlackboard("+r+")");}
     ((YPFutureImpl) r).setIsFromBlackboard(true);
     submit(r);
   }
   void submitFromService(YPFuture r) throws TransportException {
+    if (logger.isDebugEnabled()) { logger.debug("submitFromService("+r+")"); }
     submit(r);
   }
 
@@ -770,7 +764,6 @@ public class YPClientComponent extends ComponentSupport {
       tracker.receiveResponse(el);
     }
     rc++;
-    //System.err.println("YPClient RES="+rc);
     
   }
 
@@ -795,9 +788,7 @@ public class YPClientComponent extends ComponentSupport {
           logger.debug("Tracker.send: sending YPQueryMessage - origin " + originMA +
                        " context " + context);
 	  if (context == null) {
-	    RuntimeException re = 
-	      new RuntimeException("Null context in Tracker.send.");
-	    re.printStackTrace();
+            logger.error("Null context in Tracker.send.", new Throwable());
 	  }
         }
         MessageAddress ma = lookup(context);
@@ -825,8 +816,6 @@ public class YPClientComponent extends ComponentSupport {
     }
 
     void receiveResponse(Element result) {
-      //System.err.println("YPCLient GOT");
-
       if (isResponseComplete(query, result)) {
         if (logger.isDebugEnabled()) {
           logger.debug("Tracker "+key+" waking with "+result);

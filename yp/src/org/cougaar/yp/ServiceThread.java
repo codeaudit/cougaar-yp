@@ -58,7 +58,6 @@ public class ServiceThread {
     // set up the service thread
     thread = threadService.getThread(this, new Runnable() {
         public void run() {
-          //System.err.println(name+" RUN");
           try {
             cycle();
           } catch (Throwable e) {
@@ -67,12 +66,12 @@ public class ServiceThread {
         }}, name);
   }
 
-  private int ic = 0;
-  private int oc = 0;
+  // useful counters to tell if everything is getting dealt with
+  private int ic = 0;           // sync on inQ
+  private int oc = 0;           // sync on inQ
 
   /** Used to (re)start the service thread to handle queued YP messages **/
   private void wake() {
-    //System.err.println(name+" WAKE");
     thread.start();
   }
 
@@ -82,7 +81,7 @@ public class ServiceThread {
       if (logger.isDebugEnabled()) {
         logger.debug(name+" Queuing Message "+ic);
       }
-      //System.err.println(name+" IN="+ic);
+
       inQ.add(m);
     }
     // should this be in the sync?
@@ -92,36 +91,39 @@ public class ServiceThread {
   private final static boolean batchRequests = false;
 
   private void cycle() {
-    Message m;
-      
     if (batchRequests) {
       // service everything we can
       while (true) {
-        // get the next message
-        synchronized (inQ) {
-          m = (Message) inQ.next();
-          if (m == null) return;  // exit the loop if we are done
+        if (! dispatchNext()) {
+          return;
         }
-
-        // handle it outside the inQ lock
-        callback.dispatch(m);
       }
     } else {
-      // service just the next message
-      synchronized (inQ) {
-        m = (Message) inQ.next();
-        if (logger.isDebugEnabled()) {
-          logger.debug(name+" handling Request "+oc);
-        }
-        if (m == null) {
-          return;  // exit the loop if we are done
-        }
-        oc++;
+      if (! dispatchNext() ) {
+        return;
       }
-      //System.err.println(name+" OUT="+oc);
-      callback.dispatch(m);
-      // could check again, but why bother?
       wake();
     }
+  }
+
+  private boolean dispatchNext() {
+    Message m;
+    // get the next message
+    synchronized (inQ) {
+      m = (Message) inQ.next();
+      if (m == null) {
+        // exit the loop if we are done
+        return false;
+      }
+      
+      oc++;
+      if (logger.isDebugEnabled()) {
+        logger.debug(name+" Handling Message "+oc);
+      }
+    }
+    
+    // handle it outside the inQ lock
+    callback.dispatch(m);
+    return true;
   }
 }
