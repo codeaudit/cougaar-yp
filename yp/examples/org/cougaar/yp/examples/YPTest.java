@@ -55,11 +55,11 @@ import org.w3c.dom.Node;
 
 
 /** This is a trivial YP service tester.
- * It may be run in two ways:  Either as a standalone class (e.g. via main()) or
- * as a plugin/component by adding the appropriate line in 
+ * Use this as a plugin/component by adding the appropriate line in 
  * a society config file, e.g. "plugin = org.cougaar.yp.YPTest(A)" where "A" is the
  * name of an agent which has a YPServer loaded and the current agent has
  * YPClientComponent loaded).
+ * @note Also see yp/configs/miniyp for a small society with the right parts to run this sample code.
  */
 
 public class YPTest extends ComponentSupport {

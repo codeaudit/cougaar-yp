@@ -83,7 +83,7 @@ final class YPFutureImpl implements YPFuture, Persistable {
       SchedulableStatus.withWait("YP Lookup",
                                  new Runnable() { public void run() {
                                    try {
-                                     this.wait(msecs);
+                                     (YPFutureImpl.this).wait(msecs); // don't wait on the runnable!
                                    } catch (InterruptedException ie) {
                                      logger.warn("Saw InterruptedException while waiting for YPReponse", ie);
                                    }
