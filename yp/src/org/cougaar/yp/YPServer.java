@@ -93,8 +93,8 @@ public class YPServer extends ComponentSupport {
     boolean isInquiry = r.isInquiry();
     rel = executeQuery(qel);
     YPResponseMessage m = new YPResponseMessage(originMA, r.getOriginator(), rel, key);
+    logger.debug("dispatchQuery: response - " + m);
     sendMessage(m);
-    logger.warn("dispatchQuery: response - " + m);
   }
 
   protected void sendMessage(Message m) {
@@ -116,12 +116,11 @@ public class YPServer extends ComponentSupport {
   }
 
   Element executeQuery(Element qel) {
-    Connection con = null;
     int exceptCount = 0;
 
-    while (con == null) {
+    while (theConnection == null) {
       try {
-	con = getDBConnection();
+	theConnection = getDBConnection();
       } catch (Exception e) {
 	if (exceptCount++ > 10) {
 	  e.printStackTrace();
@@ -138,18 +137,22 @@ public class YPServer extends ComponentSupport {
       String apiName = qel.getNodeName();
       UddiObject param = new UddiObject(qel);
 
-      UddiService uService = new UddiService(con);
+      UddiService uService = new UddiService(theConnection);
       UddiObject obj = uService.invokeAppropriateApi(apiName, param);
 
-      con.close();
+      //theConnection.close();
+      //theConnection = null;
       
+      logger.debug("executeQuery: return " + obj.getElement());
+
       return obj.getElement();
 
       } catch (Exception e) {
         try {
-          if (con != null) {
-            //con.rollback();
-            con.close();
+          if (theConnection != null) {
+            //theConnection.rollback();
+            //theConnection.close();
+            //theConnection = null;
           }
         }
         catch ( Exception e1){
@@ -202,32 +205,33 @@ public class YPServer extends ComponentSupport {
       }
     } catch (Exception e) {}
 
-    Connection con = null;
     try {
       theConnection = getDBConnection();
-      con = theConnection;
-      executeSQL(con, CT_1);
-      executeSQL(con, CT_1a);
-      executeSQL(con, CT_2);
-      executeSQL(con, CT_3);
-      executeSQL(con, CT_4);
-      executeSQL(con, CT_5);
-      executeSQL(con, CT_6);
-      executeSQL(con, CT_7);
-      executeSQL(con, CT_8);
-      executeSQL(con, CT_9);
-      executeSQL(con, CT_10);
-      executeSQL(con, CT_11);
-      executeSQL(con, CT_12);
-      executeSQL(con, CT_13);
-      executeSQL(con, CT_14);
-      //con.commit();
-      con.close();
+      executeSQL(theConnection, CT_1);
+      executeSQL(theConnection, CT_1a);
+      executeSQL(theConnection, CT_2);
+      executeSQL(theConnection, CT_3);
+      executeSQL(theConnection, CT_4);
+      executeSQL(theConnection, CT_5);
+      executeSQL(theConnection, CT_6);
+      executeSQL(theConnection, CT_7);
+      executeSQL(theConnection, CT_8);
+      executeSQL(theConnection, CT_9);
+      executeSQL(theConnection, CT_10);
+      executeSQL(theConnection, CT_11);
+      executeSQL(theConnection, CT_12);
+      executeSQL(theConnection, CT_13);
+      executeSQL(theConnection, CT_14);
+
+      //theConnection.commit();
+      //theConnection.close();
+      //theConnection = null;
     } catch (Exception e) {
       try {
-        if (con != null) {
-          //con.rollback();
-          //con.close();
+        if (theConnection != null) {
+          //theConnection.rollback();
+          //theConnection.close();
+          //theConnection = null;
         }
       } catch ( Exception e1){
         e1.printStackTrace();
