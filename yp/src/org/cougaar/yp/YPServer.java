@@ -50,7 +50,7 @@ import com.induslogic.uddi.*;
  * hsqldb in in-memory mode as a database.
  **/
 
-public class YPInMemoryDB extends ComponentSupport {
+public class YPServer extends ComponentSupport {
   
   private MessageSwitchService mss = null;
   private MessageAddress originMA;
@@ -92,8 +92,8 @@ public class YPInMemoryDB extends ComponentSupport {
     mss.sendMessage(m);
   }
 
-  public static final String DB_URL = "jdbc:hsqldb:.";
   public static final String DB_DRIVER = "org.hsqldb.jdbcDriver";
+  public static final String DB_URL = "jdbc:hsqldb:.";
   public static final String DB_USER = "sa";
   public static final String DB_PASS = "";
 
@@ -221,7 +221,7 @@ public class YPInMemoryDB extends ComponentSupport {
 
 
   public static void main(String[] arg) {
-    YPInMemoryDB yp = new YPInMemoryDB();
+    YPServer yp = new YPServer();
     yp.initDB();
   }
 }
