@@ -23,6 +23,7 @@ package org.cougaar.yp;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Set;
@@ -318,15 +319,15 @@ public class YPClientComponent extends ComponentSupport {
     mss.sendMessage(m);
   }
 
-  private static final String YP_AGENT_FILTER = "(Role=YPServer)";
+
 
   /** Convert a context to a MessageAddress supporting the YP application **/
   protected MessageAddress lookup(Object context) {
     if (context instanceof MessageAddress) {
       return ((MessageAddress) context);
     } else if (context instanceof Community) {
-      Set ypAgents = 
-	((Community) context).search(YP_AGENT_FILTER, Community.AGENTS_ONLY);
+      Set ypAgents = ypServers((Community) context);
+
       if (logger.isDebugEnabled()) {
 	logger.debug("lookup: ypAgents " + ypAgents + " size = " + ypAgents.size());
       }
@@ -426,7 +427,7 @@ public class YPClientComponent extends ComponentSupport {
 	  Community parent = (Community) resp.getContent();
 	  
 	  if (ypCommunity(parent)) {
-	    if (ypServer(parent)) {
+	    if (!ypServers(parent).isEmpty()) {
 	      callback.setNextContext(parent);
 	    } else {
 	      nextYPServerContext(parent, callback);
@@ -446,7 +447,7 @@ public class YPClientComponent extends ComponentSupport {
       if (parent != null) {
 	if (ypCommunity(parent)) {
 	  ypCommunity = true;
-	  if (ypServer(parent)) {
+	  if (!ypServers(parent).isEmpty()) {
 	    callback.setNextContext(parent);
 	    return;
 	  } else {	
@@ -528,33 +529,21 @@ public class YPClientComponent extends ComponentSupport {
     return communityType.contains("YPCommunity");
   }
 
-  public static boolean ypServer(Community community) {
-    if (ypCommunity(community)) {
-      Attributes attributes = community.getAttributes();
-      Attribute ypServerAgent = attributes.get("YPServerAgent");
+  private static final String YP_AGENT_FILTER = "(Role=YPServer)";
 
-      if (ypServerAgent == null) {
-	if (logger.isDebugEnabled()) {
-	  logger.debug("ypServer: returning false for " + 
-		       community);
-	}
+  public static Set ypServers(Community community) {
+    if (!ypCommunity(community)) {
+      return Collections.EMPTY_SET;
+    }
 
-	return false;
-      }
-
-      if (logger.isDebugEnabled()) {
-	logger.debug("ypServer: returning " + 
-		     (ypServerAgent.size() > 0) +
-		     " for " + community);
-      }
-
-      return ypServerAgent.size() > 0;
-    } 
-    return false;
+    Set ypAgents = 
+      (community).search(YP_AGENT_FILTER, Community.AGENTS_ONLY);
+    if (logger.isDebugEnabled()) {
+      logger.debug("ypServers: " + ypAgents + " size = " + ypAgents.size());
+    }
+    
+    return ypAgents;
   }
-
-
-
 
   /** Return true IFF the element represents an actual answer (or positive failure) **/
   boolean isResponseComplete(YPFuture r, Element e) {
