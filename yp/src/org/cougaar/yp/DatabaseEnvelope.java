@@ -83,7 +83,7 @@ public class DatabaseEnvelope implements Serializable {
     out.defaultWriteObject();
     if (locker == null) {       // if locker is null, then we've already rehydrated
       assert stuff != null;
-      out.write(stuff);         // might as well support re-writing
+      out.writeObject(stuff);         // might as well support re-writing
       if (logger.isInfoEnabled()) logger.info("Reserialized "+this);
     } else {
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -161,8 +161,9 @@ public class DatabaseEnvelope implements Serializable {
     }
     zis.close();
     
-    // when done, should we null the stuff to prime the gc?
-    stuff = null;
+    // when done, should we null the stuff to prime the gc?  No - we need to be able to
+    // re-write it until the database gets another snapshot taken.
+    //stuff = null;
   }
 
   /** Database Lock abstraction - provides for both locking (to prevent database modifications

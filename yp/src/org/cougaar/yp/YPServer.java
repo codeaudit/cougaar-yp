@@ -493,6 +493,9 @@ public class YPServer extends ComponentSupport {
       if (databaseEnvelope!=null) { // rehydrate!
         try {
           databaseEnvelope.dumpPayload(dbDirectory);
+          snapshotDatabase();   // re-snapshot to avoid keeping a big array around
+                                // Note that this call re-syncs on databaseLocker
+                                // but we don't want a gap.
           return;               // done - all is well
         } catch (IOException ioe) {
           logger.error("Unrecoverable database snapshot "+dbDirectory, ioe);
