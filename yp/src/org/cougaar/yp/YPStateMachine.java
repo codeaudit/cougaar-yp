@@ -52,6 +52,11 @@ public class YPStateMachine extends StackMachine {
     UDDI_PASSWORD = System.getProperty("org.cougaar.yp.juddi-users.password", YPProxy.DEFAULT_UDDI_PASSWORD);
   }
 
+  protected static int WARNING_SUPPRESSION_INTERVAL = 5;
+  protected long warningCutoffTime = 0;
+  protected static final String YP_GRACE_PERIOD_PROPERTY = 
+                "org.cougaar.servicediscovery.yp.YPGracePeriod";
+
   private final Properties ypproperties = new Properties();
 
   private final YPService yps;
@@ -164,7 +169,7 @@ public class YPStateMachine extends StackMachine {
         public void handle(Frame f, Exception e) {
           AuthToken t = (AuthToken) f.getArgument();
           if (t == null) t = token;
-          log.error("Exception in discardAuthToken("+t+")", e);
+          logHandledError("Exception in discardAuthToken("+t+")", e);
           if (t == token || t == null) token = null;
           transit("POP");
         }
@@ -174,7 +179,7 @@ public class YPStateMachine extends StackMachine {
     addLink("YPError", "handleYPError");
     add(new SState("handleYPError") {
       public void invoke() {
-	log.error("Exception in " + getVar("YPErrorText"), (Exception) getVar("YPErrorException"));
+	logHandledError("Exception in " + getVar("YPErrorText"), (Exception) getVar("YPErrorException"));
       }
     });
 
@@ -189,7 +194,9 @@ public class YPStateMachine extends StackMachine {
     thread = getThreadService().getThread(this, new Runnable() {
         public void run() {
           try {
-            //log.warn("running YPStateMachine.go()");
+	    if (log.isDebugEnabled()) {
+	      log.debug("running YPStateMachine.go()");
+	    }
             go();
           } catch (RuntimeException e) {
             handleException(e);
@@ -199,11 +206,7 @@ public class YPStateMachine extends StackMachine {
   }
 
   protected void handleException(Exception e) {
-    /*
-    log.error("YPStateMachine caught Exception. Will reset.", e);
-    reset();
-    */
-    log.error("Caught Exception - machine is dead", e);
+    logHandledError("Caught Exception - machine is dead", e);
   }
     
 
@@ -224,9 +227,7 @@ public class YPStateMachine extends StackMachine {
       try {
         fut = ypq.get(frame);
       } catch (Exception e) {
-        if (log.isInfoEnabled()) {
-          log.info("Caught exception in YPQ.get() "+ypq, e);
-        }
+	logHandledError("Caught exception in YPQ.get() "+ypq, e);
         ypq.handle(frame, e);
         return;
       }
@@ -244,7 +245,7 @@ public class YPStateMachine extends StackMachine {
             ypq.handle(frame, new RuntimeException("YPQ notified but not really ready!"));
           }
         } catch (Exception re) {
-          log.error("Caught exception from YP during kick() in "+(YPStateMachine.this)+
+          logHandledError("Caught exception from YP during kick() in "+(YPStateMachine.this)+
                     " with YPFuture "+r, re);
           ypq.handle(frame, re);
         }
@@ -253,9 +254,7 @@ public class YPStateMachine extends StackMachine {
       try {
         yps.submit(fut);
       } catch (RuntimeException e) {
-        if (log.isInfoEnabled()) {
-          log.info("Caught exception in YPQ.submit() "+ypq, e);
-        }
+        logHandledError("Caught exception in YPQ.submit() "+ypq, e);
         ypq.handle(frame, e);
       }
     }});
@@ -284,10 +283,44 @@ public class YPStateMachine extends StackMachine {
             TModel nt = thunk.update(getFrame(),tModelDetail);
             call("saveTModel", nt, exit);
           } catch (RuntimeException re) {
-            log.error("Caught exception", re);
+            logHandledError("Caught exception", re);
             transit("ERROR");
           }
         }});
+  }
+
+  
+  protected long getWarningCutOffTime() {
+    if (warningCutoffTime == 0) {
+      WARNING_SUPPRESSION_INTERVAL = Integer.getInteger(YP_GRACE_PERIOD_PROPERTY,
+							WARNING_SUPPRESSION_INTERVAL).intValue();
+      warningCutoffTime = System.currentTimeMillis() + WARNING_SUPPRESSION_INTERVAL*60000;
+    }
+    
+    return warningCutoffTime;
+  }
+
+
+  // When we catch an error, log at DEBUG first. Change to logging at ERROR
+  // after After a while it becomes an error.
+  protected void logHandledError(String message) {
+    logHandledError(message, null);
+  }
+
+  // When we catch an error, log at DEBUG first. Change to logging at ERROR
+  // after After a while it becomes an error.
+  protected void logHandledError(String message, Throwable e) {
+    if(System.currentTimeMillis() > getWarningCutOffTime()) {
+      if (e == null)
+	log.error(message);
+      else
+	log.error(message, e);
+    } else if (log.isDebugEnabled()) {
+      if (e == null)
+	log.debug(message);
+      else
+	log.debug(message, e);
+    }
   }
 }
 
