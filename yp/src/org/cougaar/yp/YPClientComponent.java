@@ -75,10 +75,8 @@ public class YPClientComponent extends ComponentSupport {
   public void setThreadService(ThreadService ts) { this.threadService = ts; }
   public void setCommunityService(CommunityService cs) { this.communityService = cs; }
 
-  public void initialize() {
-    super.initialize();
-
-    // this should probably go into load
+  public void load() {
+    super.load();
 
     ServiceBroker sb = getServiceBroker();
     mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
@@ -105,7 +103,7 @@ public class YPClientComponent extends ComponentSupport {
 
     ypsp = new YPServiceProvider();
     sb.addService(YPService.class, ypsp);
-    //System.err.println("YPClientComponent/"+originMA+" initialized.");
+    //System.err.println("YPClientComponent/"+originMA+" loaded.");
   }
 
   //

@@ -81,8 +81,8 @@ public class YPTest extends ComponentSupport {
   }
 
   YPService yps = null;
-  public void initialize() {
-    super.initialize();
+  public void load() {
+    super.load();
     System.err.println("YPTest running.");
 
     yps = (YPService) getServiceBroker().getService(this, YPService.class, null);

@@ -83,10 +83,8 @@ public class YPSoapGateway extends ComponentSupport {
     }
   }
 
-  public void initialize() {
-    super.initialize();
-
-    // this should probably go into load
+  public void load() {
+    super.load();
 
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {

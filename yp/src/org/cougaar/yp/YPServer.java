@@ -111,11 +111,9 @@ public class YPServer extends ComponentSupport {
     }
   }
 
-  public void initialize() {
-    super.initialize();
+  public void load() {
+    super.load();
     ServiceBroker sb = getServiceBroker();
-
-    // this should probably go into load
 
     persistenceService = (PersistenceService) sb.getService(new PersistenceClient() {
         public PersistenceIdentity getPersistenceIdentity() { return persistenceIdentity; }
