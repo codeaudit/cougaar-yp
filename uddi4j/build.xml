@@ -73,7 +73,7 @@ Authors:
                classname="com.hp.soap.client.SoapClient"               
                classpath="${CLASS_PATH}" />
     <available property="apache-soap.available"
-               classname="org.apache.soap.messaging.Message"               
+               classname="org.apache.soap.messaging.Message"
                classpath="${CLASS_PATH}" />
     <available property="apache-axis.available"
                classname="org.apache.axis.Message"
