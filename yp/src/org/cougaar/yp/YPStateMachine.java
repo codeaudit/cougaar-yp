@@ -274,15 +274,23 @@ public class YPStateMachine extends StackMachine {
     add(new SState(t0) {
         public void invoke() {
           TModel tm = thunk.make(getFrame());
-          call("saveTModel", tm, t1);
+
+	  // Only go on if the state has not been changed by thunk.make()
+	  if (getState() == this) {
+	    call("saveTModel", tm, t1);
+	  }
         }});
     add(new SState(t1) {
         public void invoke() {
           TModelDetail tModelDetail = (TModelDetail) getResult();
           try {
             TModel nt = thunk.update(getFrame(),tModelDetail);
-            call("saveTModel", nt, exit);
-          } catch (RuntimeException re) {
+
+	    // Only go on if the state has not been changed by thunk.update()
+	    if (getState() == this) {
+	      call("saveTModel", nt, exit);
+	    }
+	  } catch (RuntimeException re) {
             logHandledError("Caught exception", re);
             transit("ERROR");
           }
