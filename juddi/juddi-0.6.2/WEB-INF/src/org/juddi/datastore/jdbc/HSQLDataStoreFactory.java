@@ -74,9 +74,6 @@ public class HSQLDataStoreFactory extends DataStoreFactory
    * Thread must set ThreadLocal Config.dbTag() before invoking JUDDI.
    */
   private static String jdbcURL() {
-    System.out.println("jdbcURL = " + "jdbc:hsqldb:" + Config.getHomeDir() +
-		       File.separator + "hsql" + File.separator + 
-		       "juddidb");
     return "jdbc:hsqldb:" + Config.getHomeDir() + File.separator + 
       "hsql" + File.separator + "juddidb";
   }
