@@ -103,14 +103,32 @@ public class UDDIProxy {
    protected URL inquiryURL = null;
    protected URL publishURL = null;
    TransportFactory transportFactory = null;
+  Transport transport = null;
    Properties    config     = null;
 
+  protected final Transport getTransport() throws TransportException {
+    if (transport == null) {
+      transport = getTransportFactory().getTransport();
+    }
+    return transport;
+  }
+
+  protected final TransportFactory getTransportFactory() {
+    if (transportFactory == null) {
+      transportFactory = TransportFactory.newInstance();
+    }
+    return transportFactory;
+  }
 
    /**
     * Default constructor.
    */
    public UDDIProxy() {
-      transportFactory = TransportFactory.newInstance();
+     // transportFactory = TransportFactory.newInstance();
+   }
+
+   public UDDIProxy(Transport t) {
+     transport = t;
    }
 
    /**
@@ -123,6 +141,20 @@ public class UDDIProxy {
     */
    public UDDIProxy(URL inquiryURL, URL publishURL) {
       this();
+      this.inquiryURL = inquiryURL;
+      this.publishURL = publishURL;
+   }
+
+   /**
+    * Construct a UDDIProxy object.
+    *
+    * @param inquiryURL URL to be used for inquiry requests.
+    * @param publishURL URL to be used for publish requests.
+    * @param transport  null indicates standard HTTP transport. Can pass in
+    *                   a different transport to use.
+    */
+   public UDDIProxy(URL inquiryURL, URL publishURL, Transport transport) {
+      this(transport);
       this.inquiryURL = inquiryURL;
       this.publishURL = publishURL;
    }
@@ -156,6 +188,11 @@ public class UDDIProxy {
       setConfiguration(p);
    }
 
+   public UDDIProxy(Properties p, Transport transport) throws MalformedURLException {
+     this.transport = transport;
+      setConfiguration(p);
+   }
+
    /**
     * Set the configuration properties
     * 
@@ -169,7 +206,9 @@ public class UDDIProxy {
       config = p;
 
       // use it in send to create factory, or create in the proxy
-      transportFactory = TransportFactory.newInstance(p);
+      if (transportFactory == null) {
+        transportFactory = TransportFactory.newInstance(p);
+      }
       if (p.getProperty("org.uddi4j.inquiryURL") != null) {
          setInquiryURL(p.getProperty( "org.uddi4j.inquiryURL"));
       }
@@ -1784,9 +1823,9 @@ public class UDDIProxy {
       Element result = null;
 
       if (inquiry) {
-         result = transportFactory.getTransport().send(el, inquiryURL);
+         result = getTransport().send(el, inquiryURL);
       } else {
-         result = transportFactory.getTransport().send(el, publishURL);
+         result = getTransport().send(el, publishURL);
       }
       return result;
    }
@@ -1806,9 +1845,9 @@ public class UDDIProxy {
       Element result = null;
 
       if (inquiry) {
-         result = transportFactory.getTransport().send(el, inquiryURL);
+         result = getTransport().send(el, inquiryURL);
       } else {
-         result = transportFactory.getTransport().send(el, publishURL);
+         result = getTransport().send(el, publishURL);
       }
       return result;
    }

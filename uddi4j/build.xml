@@ -68,7 +68,7 @@ Authors:
     <property name="dist.dir" value="./ziptmp/uddi4j"/>
     
     <mkdir dir="${build.dir}"/>
-    
+
     <available property="hp-soap.available"               
                classname="com.hp.soap.client.SoapClient"               
                classpath="${CLASS_PATH}" />
