@@ -148,11 +148,6 @@ public class YPServer extends ComponentSupport {
       throw new RuntimeException("YPServer got null MessageAddress for local Agent from MessageSwitchService!");
     }
 
-    Config.dbTag.set(originMA.toString());
-    dbDirectory = new File(Config.getHomeDir(), "hsql");
-    dbDirectory.mkdirs();
-
-
     initUDDI();
     initDB();                   // uses rehydrated database information, if available
 
@@ -423,7 +418,10 @@ public class YPServer extends ComponentSupport {
   }
 
   private void copyFiles(String ypDir, String juddiDir) {
-    File ypSourceDir = new File(installPath + "/yp/data/juddi/" + ypDir);
+    File ypSourceDir = new File(installPath + File.separator + "yp" + 
+				File.separator + "data" +
+				File.separator + "juddi" + 
+				File.separator + ypDir);
     File newDir = new File(juddiDir);
 
     try {
@@ -463,9 +461,41 @@ public class YPServer extends ComponentSupport {
   }
 
   void initDB() {
+    String juddiHomeDirProperty  = System.getProperty("juddi.homeDir", "");    
+    
+    File juddiHomeDir = new File(juddiHomeDirProperty, originMA.toString());
+    if(!juddiHomeDir.isDirectory()) {
+      if (!juddiHomeDir.mkdirs()) {
+	logger.fatal("Unable to access jUDDI home directory " + 
+		     juddiHomeDir.getAbsolutePath());
+	return;
+      }
+    }
+
+    File confDir = new File(juddiHomeDir, "conf");
+    if(!confDir.isDirectory()) {
+      if (!confDir.mkdirs()) {
+	logger.fatal("Unable to access jUDDI configuration directory " + 
+		     confDir.getAbsolutePath());
+	return;
+      }
+    }
+
+    copyFiles("conf", confDir.toString());
+
     Config.dbTag.set(originMA.toString());
-    String configDir = org.juddi.util.Config.getConfigDir();
-    copyFiles("conf", configDir);
+    if (logger.isDebugEnabled()) {
+      // verify that we agree with juddi on home and config directories
+      logger.debug(originMA.toString() + ": juddi home = " + Config.getHomeDir() + 
+		   " YPServer thinks juddi home = " + juddiHomeDir);
+
+      logger.debug(originMA.toString() + ": juddi config  = " + Config.getConfigDir() + 
+		   " YPServer thinks juddi config  = " + confDir);
+    }
+
+    dbDirectory = new File(Config.getHomeDir(), "hsql");
+    dbDirectory.mkdirs();
+
     synchronized (databaseLocker) {
       if (databaseEnvelope!=null) { // rehydrate!
         try {
