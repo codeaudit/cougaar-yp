@@ -329,6 +329,7 @@ public class YPClientComponent extends ComponentSupport {
       if (logger.isDebugEnabled()) { logger.debug("LogicProvider kickFuture("+fut+")"); }
       try {
         blackboard.openTransaction();
+        scan();
         blackboard.publishChange(fut);
       } finally {
         blackboard.closeTransaction();
