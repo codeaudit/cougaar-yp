@@ -36,12 +36,21 @@ import org.cougaar.core.mts.*;
 import org.cougaar.core.agent.*;
 import org.cougaar.core.agent.service.MessageSwitchService;
 
+/** An Agent-level Component which implements the client-side of the Cougaar
+ * YellowPages Application.
+ * @note this version supports only Component-model Service style access,
+ * and only synchronous queries.  Future versions will supply asynchronous
+ * modes and blackboard-style interaction as well.
+ **/
+
 public class YPClientComponent extends ComponentSupport {
   
   private MessageSwitchService mss = null;
   private YPTransport transport;
   private WaitQueue wq = new WaitQueue();
   private MessageAddress originMA;
+  private YPServiceProvider ypsp;
+
 
   protected void sendMessage(Message m) {
     mss.sendMessage(m);
@@ -68,7 +77,11 @@ public class YPClientComponent extends ComponentSupport {
     mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
     mss.addMessageHandler(mh);
     originMA = mss.getMessageAddress();
+
+    ypsp = new YPServiceProvider();
+    sb.addService(YPService.class, ypsp);
   }
+
 
   /** dispatch the response to the appropriate listener **/
   private void dispatchResponse(YPResponseMessage r) {
