@@ -75,6 +75,7 @@ public class ServiceThread {
     thread.start();
   }
 
+  /** queue an incoming message for later handling **/
   public void addMessage(Message m) {
     synchronized(inQ) {
       ic++;
