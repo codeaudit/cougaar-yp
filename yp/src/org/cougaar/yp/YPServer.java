@@ -97,6 +97,19 @@ public class YPServer extends ComponentSupport {
     
     // this should probably go into load
 
+    // Must get the MessageSwitchService and MessageAddress before
+    // registering the MessageHandler - cause messages may start pouring in
+    ServiceBroker sb = getServiceBroker();
+    mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
+    if (mss == null) {
+      throw new RuntimeException("YPServer couldnt get MessageSwitchService!");
+    }
+
+    originMA = mss.getMessageAddress();
+    if (originMA == null) {
+      throw new RuntimeException("YPServer got null MessageAddress for local Agent from MessageSwitchService!");
+    }
+
     // need to hook into the Agent MessageHandler protocol
     MessageHandler mh = new MessageHandler() {
         public boolean handleMessage(Message message) {
@@ -113,10 +126,8 @@ public class YPServer extends ComponentSupport {
           return false;
         }
       };
-    ServiceBroker sb = getServiceBroker();
-    mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
+
     mss.addMessageHandler(mh);
-    originMA = mss.getMessageAddress();
   }
 
   private synchronized void dispatchQuery(YPQueryMessage r) {
