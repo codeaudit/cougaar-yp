@@ -62,8 +62,6 @@ class FindServiceByTModelKeyQuery
     appendIn(sql,keysIn);
     appendOrderBy(sql,qualifiers);
 
-    System.out.println(sql.toString());
-
     try
     {
       statement = connection.createStatement();
@@ -74,7 +72,7 @@ class FindServiceByTModelKeyQuery
       while (resultSet.next())
       {
         keysOut.addElement(resultSet.getString("SERVICE_KEY"));
-        System.out.println(resultSet.getString("SERVICE_KEY"));
+        log.info(resultSet.getString("SERVICE_KEY"));
       }
 
       if (keysOut.size() > 0)

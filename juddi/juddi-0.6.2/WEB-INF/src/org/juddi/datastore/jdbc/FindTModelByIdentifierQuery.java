@@ -62,8 +62,6 @@ class FindTModelByIdentifierQuery
     appendIn(sql,keysIn);
     appendOrderBy(sql,qualifiers);
 
-    System.out.println(sql.toString());
-
     try
     {
       statement = connection.createStatement();
@@ -74,7 +72,7 @@ class FindTModelByIdentifierQuery
       while (resultSet.next())
       {
         keysOut.addElement(resultSet.getString("TMODEL_KEY"));
-        System.out.println(resultSet.getString("TMODEL_KEY"));
+        log.info(resultSet.getString("TMODEL_KEY"));
       }
 
       if (keysOut.size() > 0)

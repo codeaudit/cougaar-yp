@@ -63,7 +63,6 @@ class FindBindingByTModelKeyQuery
     appendIn(sql,keysIn);
     appendOrderBy(sql,qualifiers);
 
-    System.out.println(sql.toString());
 
     try
     {
@@ -75,7 +74,7 @@ class FindBindingByTModelKeyQuery
       while (resultSet.next())
       {
         keysOut.addElement(resultSet.getString("BINDING_KEY"));
-        System.out.println(resultSet.getString("BINDING_KEY"));
+        log.info(resultSet.getString("BINDING_KEY"));
       }
 
       if (keysOut.size() > 0)
