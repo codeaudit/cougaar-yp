@@ -38,6 +38,8 @@ import org.cougaar.core.agent.service.MessageSwitchService;
 
 import org.cougaar.core.blackboard.*;
 import org.cougaar.core.service.BlackboardService;
+import org.cougaar.core.service.ThreadService;
+import org.cougaar.core.thread.*;
 import org.cougaar.util.*;
 
 
@@ -58,6 +60,9 @@ public class YPClientComponent extends ComponentSupport {
   private MessageAddress originMA;
   private BlackboardService blackboard;;
   private YPLP lp;
+  private ThreadService threadService;
+
+  public void setThreadService(ThreadService ts) { this.threadService = ts; }
 
   public void initialize() {
     super.initialize();
@@ -140,47 +145,19 @@ public class YPClientComponent extends ComponentSupport {
     
     IncrementalSubscription futures;
     SubscriptionWatcher watcher;
+    Schedulable thread = null;
 
-    private final Object sem = new Object();
-    private boolean pending = false; // true iff need service, locked by sem
-    private void pause() throws InterruptedException {
-      synchronized (sem) {
-        if (pending) {
-          pending = false;
-        } else {
-          sem.wait();
-        }
-      }
-    }
     private void signal() {
-      synchronized (sem) {
-        pending = true;
-        sem.notify();
-      }
-    }
-
-    Thread thread = null;
-
-    void start() {
-      thread = new Thread(new Runnable() {
-          public void run() {
-            init();
-            while (true) {
-              try {
-                pause();
-              } catch (InterruptedException e) {
-                return;
-              }
-              cycle();
-            }
-          }});
       thread.start();
     }
 
-    void stop() {
-      synchronized (sem) {
-        thread.interrupt();
-      }
+    void start() {
+      thread = threadService.getThread(this, new Runnable() {
+          public void run() {
+              cycle();
+          }}, originMA.toString()+"YP");
+      init();
+      signal();
     }
 
     void init() {
