@@ -32,8 +32,8 @@ import java.util.*;
 import org.cougaar.core.mts.Message;
 import org.cougaar.core.mts.MessageAddress;
 
-public abstract class YPResponseMessage extends YPMessage {
-  protected YPResponseMessage(MessageAddress s, MessageAddress d) {
-    super(s,d);
+public class YPResponseMessage extends YPMessage {
+  protected YPResponseMessage(MessageAddress s, MessageAddress d, Element el, Object key) {
+    super(s,d,el,key);
   }
 }

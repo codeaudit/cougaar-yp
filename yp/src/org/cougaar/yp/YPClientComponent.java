@@ -40,7 +40,9 @@ public class YPClientComponent extends ComponentSupport {
   
   private MessageSwitchService mss = null;
   private YPTransport transport;
-  
+  private WaitQueue wq = new WaitQueue();
+  private MessageAddress originMA;
+
   protected void sendMessage(Message m) {
     mss.sendMessage(m);
   }
@@ -65,10 +67,36 @@ public class YPClientComponent extends ComponentSupport {
     ServiceBroker sb = getServiceBroker();
     mss = (MessageSwitchService) sb.getService(this,MessageSwitchService.class, null);
     mss.addMessageHandler(mh);
+    originMA = mss.getMessageAddress();
   }
 
   /** dispatch the response to the appropriate listener **/
   private void dispatchResponse(YPResponseMessage r) {
+    Object key = r.getKey();
+    Element el = r.getElement();
+    wq.trigger(key, el);
+  }
+
+  private Element soapSend(Element el, URL url) throws TransportException {
+    Object key = wq.getKey();
+    try {
+      YPQueryMessage m = new YPQueryMessage(originMA, convertURLtoMA(url), el, key);
+      mss.sendMessage(m);
+      while (true) {
+        try {
+          return (Element) wq.waitFor(key);
+        } catch (InterruptedException ie) {
+          // should probably log here...
+          Thread.interrupted();
+        }
+      }
+    } catch (RuntimeException re) {
+      throw new TransportException(re);
+    }
+  }
+  
+  private MessageAddress convertURLtoMA(URL url) {
+    return MessageAddress.getMessageAddress(URI.create(url.toString()));
   }
 
   class YPServiceProvider implements ServiceProvider {
@@ -95,8 +123,8 @@ public class YPClientComponent extends ComponentSupport {
 
   class YPTransport extends TransportBase {
     /** Send the DOM element specified to the URL as interpreted by the MTS **/
-    public Element send(Element el, java.net.URL url) {
-      return el;
+    public Element send(Element el, java.net.URL url) throws TransportException {
+      return soapSend(el, url);
     }
   }
 }

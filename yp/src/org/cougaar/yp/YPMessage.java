@@ -33,8 +33,16 @@ import org.cougaar.core.mts.Message;
 import org.cougaar.core.mts.MessageAddress;
 
 public abstract class YPMessage extends Message {
-  protected YPMessage(MessageAddress s, MessageAddress d) {
+  private Object key;
+  private Element el;
+  protected YPMessage(MessageAddress s, MessageAddress d, Element el, Object key) {
     super(s,d);
+    this.key = key;
   }
+  /** get the YP query key for this message. **/
+  Object getKey() { return key; }
+
+  /** get the DOM element of this message **/
+  Element getElement() { return el; }
 }
 
