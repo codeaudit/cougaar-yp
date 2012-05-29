@@ -225,7 +225,7 @@ public class HsqlDeque {
 // based on code by dnordahl@users
     public Enumeration elements() {
 
-        Enumeration enum = new Enumeration() {
+        Enumeration enm = new Enumeration() {
 
             private int currentIndex = 0;
 
@@ -243,7 +243,7 @@ public class HsqlDeque {
             }
         };
 
-        return enum;
+        return enm;
     }
 
     private void resetCapacity() {

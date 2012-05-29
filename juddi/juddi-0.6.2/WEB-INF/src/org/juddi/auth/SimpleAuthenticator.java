@@ -95,10 +95,10 @@ public class SimpleAuthenticator implements ContentHandler, ErrorHandler, Authen
         {
           sleep(delayBetweenSweeps);
 
-          Enumeration enum = tokenTable.keys();
-          while (enum.hasMoreElements())
+          Enumeration enm = tokenTable.keys();
+          while (enm.hasMoreElements())
           {
-            String tokenKey = (String)enum.nextElement();
+            String tokenKey = (String)enm.nextElement();
             TokenInfo tokenInfo = (TokenInfo)tokenTable.get(tokenKey);
 
             long lastUsed = tokenInfo.lastUsed.getTime();
@@ -384,10 +384,10 @@ public class SimpleAuthenticator implements ContentHandler, ErrorHandler, Authen
   {
     StringBuffer buff = new StringBuffer(100);
 
-    Enumeration enum = userTable.keys();
-    while (enum.hasMoreElements())
+    Enumeration enm = userTable.keys();
+    while (enm.hasMoreElements())
     {
-      UserInfo userInfo = (UserInfo)userTable.get(enum.nextElement());
+      UserInfo userInfo = (UserInfo)userTable.get(enm.nextElement());
       buff.append(userInfo.toString()+"\n");
     }
 
